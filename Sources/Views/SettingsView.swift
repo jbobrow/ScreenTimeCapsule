@@ -306,18 +306,19 @@ struct DataSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .fileExporter(
+        .fileImporter(
             isPresented: $showingExportSheet,
-            document: nil,
-            contentType: .folder,
-            defaultFilename: "ScreenTimeBackups"
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false
         ) { result in
             switch result {
-            case .success(let url):
-                do {
-                    try backupManager.exportBackups(to: url)
-                } catch {
-                    print("Export error: \(error)")
+            case .success(let urls):
+                if let url = urls.first {
+                    do {
+                        try backupManager.exportBackups(to: url)
+                    } catch {
+                        print("Export error: \(error)")
+                    }
                 }
             case .failure(let error):
                 print("Export picker error: \(error)")
