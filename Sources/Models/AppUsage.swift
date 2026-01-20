@@ -74,7 +74,7 @@ enum UsageCategory: String, Codable, CaseIterable {
 
 // MARK: - Device Info
 
-struct DeviceInfo: Identifiable, Codable {
+struct DeviceInfo: Identifiable, Codable, Hashable {
     let id: String
     let name: String
     let model: String
