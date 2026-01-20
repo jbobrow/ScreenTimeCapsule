@@ -99,15 +99,34 @@ class DatabaseManager {
 
         print("🔍 Querying with timestamps: \(startTimestamp) to \(endTimestamp)")
 
+        // First, check what stream names exist in the database
+        let allStreamsQuery = try db.prepare("SELECT DISTINCT ZSTREAMNAME FROM ZOBJECT WHERE ZSTREAMNAME IS NOT NULL LIMIT 20")
+        print("🔍 Available stream names in database:")
+        for row in allStreamsQuery {
+            if let streamName = row[0] as? String {
+                print("   - \(streamName)")
+            }
+        }
+
         let query = objects
             .filter(zStartDate >= startTimestamp && zStartDate <= endTimestamp)
             .filter(zStreamName == "/app/usage" || zStreamName == "/app/inFocus")
 
         var rowCount = 0
+        var skippedCount = 0
         for row in try db.prepare(query) {
             rowCount += 1
+
+            // Log first few rows for debugging
+            if rowCount <= 3 {
+                print("🔍 Row \(rowCount): stream=\(row[zStreamName] ?? "nil"), bundleId=\(row[zValueString] ?? "nil"), hasEndDate=\(row[zEndDate] != nil)")
+            }
+
             guard let bundleId = row[zValueString],
-                  let end = row[zEndDate] else { continue }
+                  let end = row[zEndDate] else {
+                skippedCount += 1
+                continue
+            }
 
             let duration = end - row[zStartDate]
 
@@ -119,6 +138,8 @@ class DatabaseManager {
                 appUsageMap[bundleId] = (name: appName, totalTime: duration)
             }
         }
+
+        print("🔍 Skipped \(skippedCount) rows due to missing bundleId or endDate")
 
         print("🔍 Processed \(rowCount) database rows")
         print("🔍 Found \(appUsageMap.count) unique apps")
