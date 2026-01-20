@@ -193,11 +193,29 @@ class DatabaseManager {
     }
 
     private func getCurrentDeviceID() -> String {
-        // Get unique device identifier
-        if let uuid = IOPlatformExpertDevice.uuid {
+        // Get unique device identifier using IOKit
+        if let uuid = getIOPlatformUUID() {
             return uuid
         }
         return Host.current().localizedName ?? "unknown"
+    }
+
+    private func getIOPlatformUUID() -> String? {
+        let platformExpert = IOServiceGetMatchingService(
+            kIOMainPortDefault,
+            IOServiceMatching("IOPlatformExpertDevice")
+        )
+
+        defer { IOObjectRelease(platformExpert) }
+
+        guard platformExpert != 0 else { return nil }
+
+        return IORegistryEntryCreateCFProperty(
+            platformExpert,
+            kIOPlatformUUIDKey as CFString,
+            kCFAllocatorDefault,
+            0
+        ).takeRetainedValue() as? String
     }
 
     // MARK: - Copy Database for Backup
@@ -255,27 +273,5 @@ class DatabaseManager {
                 )
             }
         }
-    }
-}
-
-// MARK: - IOKit Extension
-
-private extension IOPlatformExpertDevice {
-    static var uuid: String? {
-        let platformExpert = IOServiceGetMatchingService(
-            kIOMainPortDefault,
-            IOServiceMatching("IOPlatformExpertDevice")
-        )
-
-        defer { IOObjectRelease(platformExpert) }
-
-        guard platformExpert != 0 else { return nil }
-
-        return IORegistryEntryCreateCFProperty(
-            platformExpert,
-            kIOPlatformUUIDKey as CFString,
-            kCFAllocatorDefault,
-            0
-        ).takeRetainedValue() as? String
     }
 }
