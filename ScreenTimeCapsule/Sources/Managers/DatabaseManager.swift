@@ -73,6 +73,8 @@ class DatabaseManager {
     // MARK: - Fetch App Usage Data
 
     func fetchAppUsage(from startDate: Date, to endDate: Date) throws -> [AppUsage] {
+        print("🔍 fetchAppUsage() called for range: \(startDate) to \(endDate)")
+
         let db = try Connection(knowledgeDBPath, readonly: true)
 
         // Define table and columns based on knowledgeC.db schema
@@ -95,11 +97,15 @@ class DatabaseManager {
         let startTimestamp = startDate.timeIntervalSince(referenceDate)
         let endTimestamp = endDate.timeIntervalSince(referenceDate)
 
+        print("🔍 Querying with timestamps: \(startTimestamp) to \(endTimestamp)")
+
         let query = objects
             .filter(zStartDate >= startTimestamp && zStartDate <= endTimestamp)
             .filter(zStreamName == "/app/usage" || zStreamName == "/app/inFocus")
 
+        var rowCount = 0
         for row in try db.prepare(query) {
+            rowCount += 1
             guard let bundleId = row[zValueString],
                   let end = row[zEndDate] else { continue }
 
@@ -113,6 +119,9 @@ class DatabaseManager {
                 appUsageMap[bundleId] = (name: appName, totalTime: duration)
             }
         }
+
+        print("🔍 Processed \(rowCount) database rows")
+        print("🔍 Found \(appUsageMap.count) unique apps")
 
         // Convert to AppUsage objects
         let usageArray = appUsageMap.map { bundleId, info in

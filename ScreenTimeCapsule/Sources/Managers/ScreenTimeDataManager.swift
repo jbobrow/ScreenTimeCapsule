@@ -74,6 +74,8 @@ class ScreenTimeDataManager: ObservableObject {
             return
         }
 
+        print("🔄 refreshData() called")
+
         Task {
             await MainActor.run {
                 isLoading = true
@@ -88,10 +90,20 @@ class ScreenTimeDataManager: ObservableObject {
                     dateRange = selectedTimePeriod.dateRange
                 }
 
+                print("📅 Fetching data from \(dateRange.start) to \(dateRange.end)")
+                print("📅 Selected period: \(selectedTimePeriod.rawValue)")
+
                 let usage = try databaseManager.fetchAppUsage(
                     from: dateRange.start,
                     to: dateRange.end
                 )
+
+                print("📊 Fetched \(usage.count) app usage records")
+                if usage.isEmpty {
+                    print("⚠️ No usage data found for the selected time period")
+                } else {
+                    print("✅ Top apps: \(usage.prefix(3).map { "\($0.appName): \($0.formattedTime)" }.joined(separator: ", "))")
+                }
 
                 let summary = calculateSummary(from: usage, dateRange: dateRange)
 
@@ -99,8 +111,10 @@ class ScreenTimeDataManager: ObservableObject {
                     self.currentUsage = usage
                     self.usageSummary = summary
                     self.isLoading = false
+                    print("✅ Data loaded and UI updated")
                 }
             } catch {
+                print("❌ Error fetching data: \(error)")
                 await MainActor.run {
                     self.errorMessage = "Failed to load data: \(error.localizedDescription)"
                     self.isLoading = false
