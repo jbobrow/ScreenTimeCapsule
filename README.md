@@ -48,28 +48,33 @@ ScreenTimeCapsule is a native macOS application that automatically backs up your
 
 ## Installation
 
-### Option 1: Build from Source
+### Build from Source
 
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/ScreenTimeCapsule.git
-cd ScreenTimeCapsule
-```
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yourusername/ScreenTimeCapsule.git
+   cd ScreenTimeCapsule
+   ```
 
-2. Open in Xcode:
-```bash
-open Package.swift
-```
+2. **Open in Xcode:**
+   ```bash
+   open ScreenTimeCapsule.xcodeproj
+   ```
 
-3. Build and run the project (⌘R)
+   Or double-click `ScreenTimeCapsule.xcodeproj` in Finder
 
-### Option 2: Swift Package Manager
+3. **Add SQLite.swift dependency:**
+   - Xcode will automatically resolve package dependencies
+   - If prompted, click "Trust & Enable" for SQLite.swift
 
-```bash
-swift build -c release
-```
+4. **Build and run:**
+   - Press **⌘R** to build and run
+   - Or Product → Run
 
-The built application will be available in `.build/release/`
+5. **Sign the app (for distribution):**
+   - Select your target → Signing & Capabilities
+   - Choose your development team
+   - Xcode will handle code signing automatically
 
 ## Setup
 
@@ -77,13 +82,22 @@ The built application will be available in `.build/release/`
 
 ScreenTimeCapsule requires Full Disk Access to read Screen Time databases.
 
-1. Open **System Settings** → **Privacy & Security** → **Full Disk Access**
-2. Click the **+** button
-3. Navigate to the ScreenTimeCapsule app
-4. Toggle the switch to enable access
-5. Restart ScreenTimeCapsule
+1. **Launch the app** - It will show a permission screen on first launch
+2. **Click "Open System Settings"** button in the app
+3. In System Settings → **Privacy & Security** → **Full Disk Access**:
+   - Click the **+** button
+   - Navigate to where you built the app:
+     - From Xcode: `/Users/YourName/Library/Developer/Xcode/DerivedData/.../ScreenTimeCapsule.app`
+     - Or drag the app from Applications folder
+   - Select the app and click "Open"
+4. **Toggle the switch** next to ScreenTimeCapsule to enable access
+5. **Return to the app** and click "Check Again"
 
-The app will guide you through this process on first launch.
+**Important Notes:**
+- The app **must be completely quit and restarted** after granting permission
+- If the app still shows the permission screen, check Console.app for error messages
+- You may need to remove and re-add the app in Full Disk Access settings
+- Make sure Screen Time is enabled in System Settings for your Mac
 
 ## Usage
 

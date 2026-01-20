@@ -1,83 +1,122 @@
 # Building ScreenTimeCapsule
 
-This guide covers building ScreenTimeCapsule from source.
+This guide covers building ScreenTimeCapsule from source using Xcode.
 
 ## Prerequisites
 
-- macOS 14.0 (Sonoma) or later
-- Xcode 15.0 or later
-- Swift 5.9 or later
-- Command Line Tools installed
+- **macOS 14.0 (Sonoma) or later**
+- **Xcode 15.0 or later**
+- **Swift 5.9 or later**
+- **Apple Developer account** (for code signing)
 
 ## Quick Start
 
-### Using Swift Package Manager
+### Building in Xcode
 
-The fastest way to build:
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yourusername/ScreenTimeCapsule.git
+   cd ScreenTimeCapsule
+   ```
+
+2. **Open the Xcode project:**
+   ```bash
+   open ScreenTimeCapsule.xcodeproj
+   ```
+
+   Or double-click `ScreenTimeCapsule.xcodeproj` in Finder
+
+3. **Wait for package dependencies to resolve:**
+   - Xcode will automatically fetch SQLite.swift
+   - Check the progress in the status bar
+
+4. **Select your development team:**
+   - Click on the project in the navigator
+   - Select the "ScreenTimeCapsule" target
+   - Go to "Signing & Capabilities" tab
+   - Choose your team from the dropdown
+
+5. **Build and run:**
+   - Press **⌘R** to build and run
+   - Or select **Product → Run**
+
+### Debug Build (Development)
+
+The default build is a debug build, optimized for development:
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/ScreenTimeCapsule.git
-cd ScreenTimeCapsule
-
-# Build in release mode
-swift build -c release
-
-# Run the app
-.build/release/ScreenTimeCapsule
+# From Xcode
+⌘B  # Build
+⌘R  # Build and Run
 ```
 
-### Using Xcode
-
-1. Open the package in Xcode:
-```bash
-open Package.swift
+The debug app will be located at:
 ```
-
-2. Wait for dependencies to resolve
-3. Select the "ScreenTimeCapsule" scheme
-4. Press ⌘R to build and run
+~/Library/Developer/Xcode/DerivedData/ScreenTimeCapsule-.../Build/Products/Debug/ScreenTimeCapsule.app
+```
 
 ## Building for Distribution
 
-### Create App Bundle
+### Release Build
 
-To create a proper macOS app bundle:
+To create an optimized release build in Xcode:
 
-```bash
-# Build in release mode
-swift build -c release
+1. **Select Release scheme:**
+   - Product → Scheme → Edit Scheme
+   - Select "Run" on the left
+   - Change "Build Configuration" to "Release"
+   - Click "Close"
 
-# Create app bundle structure
-mkdir -p "ScreenTimeCapsule.app/Contents/MacOS"
-mkdir -p "ScreenTimeCapsule.app/Contents/Resources"
+2. **Build:**
+   - Press **⌘B** to build
+   - Release app will be at:
+     ```
+     ~/Library/Developer/Xcode/DerivedData/ScreenTimeCapsule-.../Build/Products/Release/ScreenTimeCapsule.app
+     ```
 
-# Copy executable
-cp .build/release/ScreenTimeCapsule "ScreenTimeCapsule.app/Contents/MacOS/"
+### Archive for Distribution
 
-# Copy Info.plist
-cp Resources/Info.plist "ScreenTimeCapsule.app/Contents/"
+To create a distributable archive:
 
-# Copy entitlements (for signing)
-cp Resources/ScreenTimeCapsule.entitlements "ScreenTimeCapsule.app/Contents/"
-```
+1. **Set Generic Mac destination:**
+   - Click the destination selector in the toolbar
+   - Choose "Any Mac"
 
-### Code Signing
+2. **Archive the app:**
+   - Product → Archive
+   - Wait for the build to complete
+   - Organizer window will open automatically
 
-To distribute the app, you need to sign it:
+3. **Export the app:**
+   - Select your archive in the Organizer
+   - Click "Distribute App"
+   - Choose distribution method:
+     - **Developer ID**: For distribution outside the Mac App Store
+     - **Mac App Store**: For App Store submission
+     - **Copy App**: For local testing
+   - Follow the prompts to sign and export
 
-```bash
-# Sign the app
-codesign --deep --force --verify --verbose \
-  --sign "Developer ID Application: Your Name (TEAM_ID)" \
-  --options runtime \
-  --entitlements Resources/ScreenTimeCapsule.entitlements \
-  ScreenTimeCapsule.app
+### Code Signing (Automatic)
 
-# Verify signature
-codesign --verify --verbose ScreenTimeCapsule.app
-spctl --assess --verbose ScreenTimeCapsule.app
-```
+Xcode handles code signing automatically if configured correctly:
+
+1. **Verify signing settings:**
+   - Select your target
+   - Go to "Signing & Capabilities"
+   - Ensure "Automatically manage signing" is checked
+   - Select your development team
+
+2. **Check entitlements:**
+   - Verify `ScreenTimeCapsule.entitlements` is set in Build Settings
+   - Required entitlements:
+     - App Sandbox
+     - User Selected File (Read/Write)
+
+3. **Verify signature:**
+   ```bash
+   codesign --verify --deep --verbose=2 ScreenTimeCapsule.app
+   codesign -d --entitlements - ScreenTimeCapsule.app
+   ```
 
 ### Notarization
 

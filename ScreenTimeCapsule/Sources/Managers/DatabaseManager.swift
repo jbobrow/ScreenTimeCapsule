@@ -22,22 +22,51 @@ class DatabaseManager {
     // MARK: - Database Access Check
 
     func checkDatabaseAccess() -> Bool {
+        // Check if files exist first
         let knowledgeExists = fileManager.fileExists(atPath: knowledgeDBPath)
         let screenTimeExists = fileManager.fileExists(atPath: screenTimeDBPath)
 
+        print("Knowledge DB path: \(knowledgeDBPath)")
+        print("Knowledge DB exists: \(knowledgeExists)")
+        print("Screen Time DB path: \(screenTimeDBPath)")
+        print("Screen Time DB exists: \(screenTimeExists)")
+
+        // If neither exists, user might not have Screen Time enabled
         guard knowledgeExists || screenTimeExists else {
+            print("No Screen Time databases found")
             return false
         }
 
-        // Try to open the database to verify we have read permissions
-        do {
-            let db = try Connection(knowledgeDBPath, readonly: true)
-            _ = try db.scalar("SELECT COUNT(*) FROM sqlite_master") as? Int64
-            return true
-        } catch {
-            print("Database access error: \(error)")
-            return false
+        // Try to read the file to verify Full Disk Access
+        // Just checking existence isn't enough - we need actual read permission
+        if knowledgeExists {
+            do {
+                // Try to open and read the database
+                let db = try Connection(knowledgeDBPath, readonly: true)
+                _ = try db.scalar("SELECT COUNT(*) FROM sqlite_master") as? Int64
+                print("✅ Successfully accessed Knowledge database")
+                return true
+            } catch {
+                print("❌ Database access error: \(error)")
+                print("   This usually means Full Disk Access is not granted")
+                return false
+            }
         }
+
+        // Fallback: try Screen Time database if knowledge DB doesn't exist
+        if screenTimeExists {
+            do {
+                let db = try Connection(screenTimeDBPath, readonly: true)
+                _ = try db.scalar("SELECT COUNT(*) FROM sqlite_master") as? Int64
+                print("✅ Successfully accessed Screen Time database")
+                return true
+            } catch {
+                print("❌ Database access error: \(error)")
+                return false
+            }
+        }
+
+        return false
     }
 
     // MARK: - Fetch App Usage Data
