@@ -7,14 +7,15 @@ class DatabaseManager {
     static let shared = DatabaseManager()
 
     private let fileManager = FileManager.default
+
     private var knowledgeDBPath: String {
-        let homeDir = fileManager.homeDirectoryForCurrentUser
-        return homeDir.appendingPathComponent("Library/Application Support/Knowledge/knowledgeC.db").path
+        // Expand ~ to get the real user home directory, bypassing sandbox container
+        return NSString(string: "~/Library/Application Support/Knowledge/knowledgeC.db").expandingTildeInPath
     }
 
     private var screenTimeDBPath: String {
-        let homeDir = fileManager.homeDirectoryForCurrentUser
-        return homeDir.appendingPathComponent("Library/Application Support/com.apple.screentime/RMAdminStore-Local.sqlite").path
+        // Expand ~ to get the real user home directory, bypassing sandbox container
+        return NSString(string: "~/Library/Application Support/com.apple.screentime/RMAdminStore-Local.sqlite").expandingTildeInPath
     }
 
     private init() {}
