@@ -66,23 +66,48 @@ struct MainUsageView: View {
 
                 Divider()
 
-                // Usage Summary
+                // Usage Summary with Navigation
                 if let summary = dataManager.usageSummary {
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
                             Text("Usage")
                                 .foregroundColor(.secondary)
                             Spacer()
-                            Picker("", selection: $dataManager.selectedTimePeriod) {
-                                ForEach(TimePeriod.allCases, id: \.self) { period in
-                                    Text(period.rawValue).tag(period)
+
+                            // Time Period Navigation
+                            HStack(spacing: 4) {
+                                Button(action: { dataManager.navigateToPrevious() }) {
+                                    Image(systemName: "chevron.left")
+                                        .font(.system(size: 12, weight: .medium))
                                 }
+                                .buttonStyle(.plain)
+                                .help("Previous \(dataManager.selectedTimePeriod.rawValue)")
+
+                                Picker("", selection: $dataManager.selectedTimePeriod) {
+                                    ForEach(TimePeriod.allCases.filter { $0 != .custom }, id: \.self) { period in
+                                        Text(period.rawValue).tag(period)
+                                    }
+                                }
+                                .labelsHidden()
+                                .frame(width: 140)
+
+                                Button(action: { dataManager.navigateToNext() }) {
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .medium))
+                                }
+                                .buttonStyle(.plain)
+                                .help("Next \(dataManager.selectedTimePeriod.rawValue)")
+                                .disabled(!dataManager.canNavigateForward)
                             }
-                            .labelsHidden()
                         }
 
                         Text(summary.formattedTotalTime)
                             .font(.system(size: 48, weight: .medium))
+
+                        // Date range label
+                        Text(dataManager.currentDateRangeLabel)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                     .padding()
                 }
