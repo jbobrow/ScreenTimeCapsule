@@ -30,30 +30,37 @@ struct HourlyUsageChart: View {
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
-                Chart {
-                    ForEach(dataManager.getHourlyUsageDataByCategory(), id: \.hour) { data in
-                        BarMark(
-                            x: .value("Hour", hourLabel(data.hour)),
-                            y: .value("Usage", data.usage / 60) // Convert to minutes
-                        )
-                        .foregroundStyle(by: .value("Category", data.category.rawValue))
-                        .position(by: .value("Category", data.category.rawValue), axis: .horizontal)
-                    }
-                }
-                .chartForegroundStyleScale(getCategoryColorScale())
-                .chartYAxis {
-                    AxisMarks(position: .leading) { value in
-                        AxisGridLine()
-                        AxisValueLabel {
-                            if let minutes = value.as(Double.self) {
-                                Text("\(Int(minutes))m")
-                            }
-                        }
-                    }
-                }
-                .frame(height: 120)
+                chartView
             }
         }
+    }
+
+    private var chartView: some View {
+        let data = dataManager.getHourlyUsageDataByCategory()
+        let colorScale = getCategoryColorScale()
+
+        return Chart {
+            ForEach(Array(data.enumerated()), id: \.offset) { _, item in
+                BarMark(
+                    x: .value("Hour", hourLabel(item.hour)),
+                    y: .value("Usage", item.usage / 60)
+                )
+                .foregroundStyle(by: .value("Category", item.category.rawValue))
+                .position(by: .value("Category", item.category.rawValue), axis: .horizontal)
+            }
+        }
+        .chartForegroundStyleScale(colorScale)
+        .chartYAxis {
+            AxisMarks(position: .leading) { value in
+                AxisGridLine()
+                AxisValueLabel {
+                    if let minutes = value.as(Double.self) {
+                        Text("\(Int(minutes))m")
+                    }
+                }
+            }
+        }
+        .frame(height: 120)
     }
 
     private func hourLabel(_ hour: Int) -> String {
@@ -105,30 +112,37 @@ struct WeeklyUsageChart: View {
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
-                Chart {
-                    ForEach(dataManager.getWeeklyUsageDataByCategory(), id: \.day) { data in
-                        BarMark(
-                            x: .value("Day", data.day),
-                            y: .value("Usage", data.usage / 3600) // Convert to hours
-                        )
-                        .foregroundStyle(by: .value("Category", data.category.rawValue))
-                        .position(by: .value("Category", data.category.rawValue), axis: .horizontal)
-                    }
-                }
-                .chartForegroundStyleScale(getCategoryColorScale())
-                .chartYAxis {
-                    AxisMarks(position: .leading) { value in
-                        AxisGridLine()
-                        AxisValueLabel {
-                            if let hours = value.as(Double.self) {
-                                Text("\(Int(hours))h")
-                            }
-                        }
-                    }
-                }
-                .frame(height: 120)
+                chartView
             }
         }
+    }
+
+    private var chartView: some View {
+        let data = dataManager.getWeeklyUsageDataByCategory()
+        let colorScale = getCategoryColorScale()
+
+        return Chart {
+            ForEach(Array(data.enumerated()), id: \.offset) { _, item in
+                BarMark(
+                    x: .value("Day", item.day),
+                    y: .value("Usage", item.usage / 3600)
+                )
+                .foregroundStyle(by: .value("Category", item.category.rawValue))
+                .position(by: .value("Category", item.category.rawValue), axis: .horizontal)
+            }
+        }
+        .chartForegroundStyleScale(colorScale)
+        .chartYAxis {
+            AxisMarks(position: .leading) { value in
+                AxisGridLine()
+                AxisValueLabel {
+                    if let hours = value.as(Double.self) {
+                        Text("\(Int(hours))h")
+                    }
+                }
+            }
+        }
+        .frame(height: 120)
     }
 
     private func getCategoryColorScale() -> [String: Color] {

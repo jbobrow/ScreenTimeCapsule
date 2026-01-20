@@ -79,15 +79,15 @@ class DatabaseManager {
 
         // Define table and columns based on knowledgeC.db schema
         let objects = Table("ZOBJECT")
-        let zId = Expression<Int64>("Z_PK")
+        let _ = Expression<Int64>("Z_PK")
         let zStreamName = Expression<String?>("ZSTREAMNAME")
         let zStartDate = Expression<Double>("ZSTARTDATE")
         let zEndDate = Expression<Double?>("ZENDDATE")
         let zValueString = Expression<String?>("ZVALUESTRING")
 
-        let metadata = Table("ZSTRUCTUREDMETADATA")
-        let zIdentifier = Expression<String?>("ZIDENTIFIER")
-        let zTitle = Expression<String?>("ZTITLE")
+        let _ = Table("ZSTRUCTUREDMETADATA")
+        let _ = Expression<String?>("ZIDENTIFIER")
+        let _ = Expression<String?>("ZTITLE")
 
         var appUsageMap: [String: (name: String, totalTime: TimeInterval)] = [:]
 
