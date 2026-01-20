@@ -39,15 +39,14 @@ struct HourlyUsageChart: View {
         let data = dataManager.getHourlyUsageDataByCategory()
         let colorScale = getCategoryColorScale()
 
-        return Chart {
-            ForEach(Array(data.enumerated()), id: \.offset) { _, item in
-                BarMark(
-                    x: .value("Hour", hourLabel(item.hour)),
-                    y: .value("Usage", item.usage / 60)
-                )
-                .foregroundStyle(by: .value("Category", item.category.rawValue))
-                .position(by: .value("Category", item.category.rawValue), axis: .horizontal)
-            }
+        return Chart(data.indices, id: \.self) { index in
+            let item = data[index]
+            BarMark(
+                x: .value("Hour", hourLabel(item.hour)),
+                y: .value("Usage", item.usage / 60)
+            )
+            .foregroundStyle(by: .value("Category", item.category.rawValue))
+            .position(by: .value("Category", item.category.rawValue), axis: .horizontal)
         }
         .chartForegroundStyleScale(colorScale)
         .chartYAxis {
@@ -121,15 +120,14 @@ struct WeeklyUsageChart: View {
         let data = dataManager.getWeeklyUsageDataByCategory()
         let colorScale = getCategoryColorScale()
 
-        return Chart {
-            ForEach(Array(data.enumerated()), id: \.offset) { _, item in
-                BarMark(
-                    x: .value("Day", item.day),
-                    y: .value("Usage", item.usage / 3600)
-                )
-                .foregroundStyle(by: .value("Category", item.category.rawValue))
-                .position(by: .value("Category", item.category.rawValue), axis: .horizontal)
-            }
+        return Chart(data.indices, id: \.self) { index in
+            let item = data[index]
+            BarMark(
+                x: .value("Day", item.day),
+                y: .value("Usage", item.usage / 3600)
+            )
+            .foregroundStyle(by: .value("Category", item.category.rawValue))
+            .position(by: .value("Category", item.category.rawValue), axis: .horizontal)
         }
         .chartForegroundStyleScale(colorScale)
         .chartYAxis {
