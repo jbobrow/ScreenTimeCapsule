@@ -31,14 +31,16 @@ struct HourlyUsageChart: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
                 Chart {
-                    ForEach(dataManager.getHourlyUsageData(), id: \.hour) { data in
+                    ForEach(dataManager.getHourlyUsageDataByCategory(), id: \.hour) { data in
                         BarMark(
                             x: .value("Hour", hourLabel(data.hour)),
                             y: .value("Usage", data.usage / 60) // Convert to minutes
                         )
-                        .foregroundStyle(.blue.gradient)
+                        .foregroundStyle(by: .value("Category", data.category.rawValue))
+                        .position(by: .value("Category", data.category.rawValue), axis: .horizontal)
                     }
                 }
+                .chartForegroundStyleScale(getCategoryColorScale())
                 .chartYAxis {
                     AxisMarks(position: .leading) { value in
                         AxisGridLine()
@@ -65,6 +67,29 @@ struct HourlyUsageChart: View {
             return "\(hour - 12) PM"
         }
     }
+
+    private func getCategoryColorScale() -> [String: Color] {
+        var scale: [String: Color] = [:]
+        for category in UsageCategory.allCases {
+            scale[category.rawValue] = categoryColor(category)
+        }
+        return scale
+    }
+
+    private func categoryColor(_ category: UsageCategory) -> Color {
+        switch category.color {
+        case "blue": return .blue
+        case "teal": return .teal
+        case "purple": return .purple
+        case "pink": return .pink
+        case "orange": return .orange
+        case "green": return .green
+        case "indigo": return .indigo
+        case "red": return .red
+        case "brown": return .brown
+        default: return .gray
+        }
+    }
 }
 
 struct WeeklyUsageChart: View {
@@ -81,14 +106,16 @@ struct WeeklyUsageChart: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
                 Chart {
-                    ForEach(dataManager.getWeeklyUsageData(), id: \.day) { data in
+                    ForEach(dataManager.getWeeklyUsageDataByCategory(), id: \.day) { data in
                         BarMark(
                             x: .value("Day", data.day),
                             y: .value("Usage", data.usage / 3600) // Convert to hours
                         )
-                        .foregroundStyle(.blue.gradient)
+                        .foregroundStyle(by: .value("Category", data.category.rawValue))
+                        .position(by: .value("Category", data.category.rawValue), axis: .horizontal)
                     }
                 }
+                .chartForegroundStyleScale(getCategoryColorScale())
                 .chartYAxis {
                     AxisMarks(position: .leading) { value in
                         AxisGridLine()
@@ -101,6 +128,29 @@ struct WeeklyUsageChart: View {
                 }
                 .frame(height: 120)
             }
+        }
+    }
+
+    private func getCategoryColorScale() -> [String: Color] {
+        var scale: [String: Color] = [:]
+        for category in UsageCategory.allCases {
+            scale[category.rawValue] = categoryColor(category)
+        }
+        return scale
+    }
+
+    private func categoryColor(_ category: UsageCategory) -> Color {
+        switch category.color {
+        case "blue": return .blue
+        case "teal": return .teal
+        case "purple": return .purple
+        case "pink": return .pink
+        case "orange": return .orange
+        case "green": return .green
+        case "indigo": return .indigo
+        case "red": return .red
+        case "brown": return .brown
+        default: return .gray
         }
     }
 }
@@ -150,6 +200,7 @@ struct CategoryBreakdownChart: View {
         case "green": return .green
         case "indigo": return .indigo
         case "red": return .red
+        case "brown": return .brown
         default: return .gray
         }
     }

@@ -235,9 +235,10 @@ class DatabaseManager {
     private func categorizeApp(bundleId: String) -> UsageCategory {
         let lowerBundleId = bundleId.lowercased()
 
-        if lowerBundleId.contains("xcode") || lowerBundleId.contains("terminal") ||
-           lowerBundleId.contains("vscode") || lowerBundleId.contains("finance") ||
-           lowerBundleId.contains("numbers") || lowerBundleId.contains("excel") {
+        if lowerBundleId.contains("xcode") || lowerBundleId.contains("vscode") ||
+           lowerBundleId.contains("finance") || lowerBundleId.contains("numbers") ||
+           lowerBundleId.contains("excel") || lowerBundleId.contains("word") ||
+           lowerBundleId.contains("pages") {
             return .productivity
         } else if lowerBundleId.contains("photoshop") || lowerBundleId.contains("illustrator") ||
                   lowerBundleId.contains("sketch") || lowerBundleId.contains("figma") ||
@@ -259,6 +260,13 @@ class DatabaseManager {
             return .reading
         } else if lowerBundleId.contains("health") || lowerBundleId.contains("fitness") {
             return .health
+        } else if lowerBundleId.contains("calculator") || lowerBundleId.contains("clock") ||
+                  lowerBundleId.contains("weather") || lowerBundleId.contains("calendar") ||
+                  lowerBundleId.contains("reminders") || lowerBundleId.contains("notes") ||
+                  lowerBundleId.contains("finder") || lowerBundleId.contains("systemsettings") ||
+                  lowerBundleId.contains("terminal") || lowerBundleId.contains("textedit") ||
+                  lowerBundleId.contains("preview") {
+            return .utilities
         }
 
         return .other
