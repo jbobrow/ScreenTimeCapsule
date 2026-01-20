@@ -65,14 +65,20 @@ class BackupManager: ObservableObject {
         }
 
         // Load backup directory
-        if let bookmarkData = UserDefaults.standard.data(forKey: "backupDirectoryBookmark"),
-           let url = try? URL(
-            resolvingBookmarkData: bookmarkData,
-            options: .withSecurityScope,
-            relativeTo: nil,
-            bookmarkDataIsStale: nil
-           ) {
-            self.backupDirectoryURL = url
+        if let bookmarkData = UserDefaults.standard.data(forKey: "backupDirectoryBookmark") {
+            var isStale = false
+            if let url = try? URL(
+                resolvingBookmarkData: bookmarkData,
+                options: .withSecurityScope,
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            ) {
+                self.backupDirectoryURL = url
+            } else {
+                // Default backup location
+                let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                self.backupDirectoryURL = appSupport.appendingPathComponent("ScreenTimeCapsule/Backups")
+            }
         } else {
             // Default backup location
             let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
