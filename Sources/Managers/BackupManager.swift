@@ -52,19 +52,8 @@ class BackupManager: ObservableObject {
     }
 
     private init() {
-        // Load preferences
-        self.autoBackupEnabled = UserDefaults.standard.bool(forKey: "autoBackupEnabled")
-        self.backupIntervalHours = UserDefaults.standard.integer(forKey: "backupIntervalHours")
-        if self.backupIntervalHours == 0 {
-            self.backupIntervalHours = 24 // Default: daily backups
-        }
-
-        self.dataRetentionDays = UserDefaults.standard.integer(forKey: "dataRetentionDays")
-        if self.dataRetentionDays == 0 {
-            self.dataRetentionDays = 0 // 0 = unlimited
-        }
-
-        // Load backup directory
+        // Load backup directory first (needed for other initialization)
+        let fileManager = FileManager.default
         if let bookmarkData = UserDefaults.standard.data(forKey: "backupDirectoryBookmark") {
             var isStale = false
             if let url = try? URL(
@@ -94,6 +83,14 @@ class BackupManager: ObservableObject {
             newestDataDate: nil,
             isBackupRunning: false
         )
+
+        // Load preferences
+        let loadedBackupIntervalHours = UserDefaults.standard.integer(forKey: "backupIntervalHours")
+        self.backupIntervalHours = loadedBackupIntervalHours == 0 ? 24 : loadedBackupIntervalHours
+
+        self.dataRetentionDays = UserDefaults.standard.integer(forKey: "dataRetentionDays") // 0 = unlimited
+
+        self.autoBackupEnabled = UserDefaults.standard.bool(forKey: "autoBackupEnabled")
 
         // Create backup directory if needed
         try? fileManager.createDirectory(at: backupDirectoryURL, withIntermediateDirectories: true)
