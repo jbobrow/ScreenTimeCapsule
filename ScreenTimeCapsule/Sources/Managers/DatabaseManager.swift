@@ -114,6 +114,8 @@ class DatabaseManager {
 
         var rowCount = 0
         var skippedCount = 0
+        var eventsWithoutEndDate = 0
+
         for row in try db.prepare(query) {
             rowCount += 1
 
@@ -122,13 +124,22 @@ class DatabaseManager {
                 print("🔍 Row \(rowCount): stream=\(row[zStreamName] ?? "nil"), bundleId=\(row[zValueString] ?? "nil"), hasEndDate=\(row[zEndDate] != nil)")
             }
 
-            guard let bundleId = row[zValueString],
-                  let end = row[zEndDate] else {
+            guard let bundleId = row[zValueString] else {
                 skippedCount += 1
                 continue
             }
 
-            let duration = end - row[zStartDate]
+            // Calculate duration
+            let duration: Double
+            if let end = row[zEndDate] {
+                // Has end date - use actual duration
+                duration = end - row[zStartDate]
+            } else {
+                // No end date - use default duration of 60 seconds per event
+                // This means each app usage event counts as 1 minute
+                duration = 60.0
+                eventsWithoutEndDate += 1
+            }
 
             if var existing = appUsageMap[bundleId] {
                 existing.totalTime += duration
@@ -139,7 +150,8 @@ class DatabaseManager {
             }
         }
 
-        print("🔍 Skipped \(skippedCount) rows due to missing bundleId or endDate")
+        print("🔍 Skipped \(skippedCount) rows due to missing bundleId")
+        print("🔍 Events without endDate (using 60s default): \(eventsWithoutEndDate)")
 
         print("🔍 Processed \(rowCount) database rows")
         print("🔍 Found \(appUsageMap.count) unique apps")
