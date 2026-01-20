@@ -30,5 +30,7 @@
     <string>ScreenTimeCapsule needs to access Screen Time data to create backups.</string>
     <key>NSSystemAdministrationUsageDescription</key>
     <string>ScreenTimeCapsule needs administrative access to read Screen Time databases.</string>
+    <key>NSFullDiskAccessUsageDescription</key>
+    <string>ScreenTimeCapsule needs Full Disk Access to read Screen Time databases and backup your usage history.</string>
 </dict>
 </plist>
