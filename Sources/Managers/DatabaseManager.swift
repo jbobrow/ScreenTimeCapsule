@@ -1,4 +1,6 @@
 import Foundation
+import AppKit
+import IOKit
 import SQLite
 
 class DatabaseManager {

@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct PermissionView: View {
     @EnvironmentObject var dataManager: ScreenTimeDataManager

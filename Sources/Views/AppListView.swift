@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct AppListView: View {
     let selectedCategory: UsageCategory?
