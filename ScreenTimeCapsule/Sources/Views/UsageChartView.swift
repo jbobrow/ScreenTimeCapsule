@@ -37,7 +37,6 @@ struct HourlyUsageChart: View {
 
     private var chartView: some View {
         let data = dataManager.getHourlyUsageDataByCategory()
-        let colorScale = getCategoryColorScale()
 
         return Chart(data.indices, id: \.self) { index in
             let item = data[index]
@@ -48,7 +47,18 @@ struct HourlyUsageChart: View {
             .foregroundStyle(by: .value("Category", item.category.rawValue))
             .position(by: .value("Category", item.category.rawValue), axis: .horizontal)
         }
-        .chartForegroundStyleScale(colorScale)
+        .chartForegroundStyleScale([
+            "Productivity & Finance": .blue,
+            "Creativity": .teal,
+            "Entertainment": .purple,
+            "Social": .pink,
+            "Games": .orange,
+            "Reading & Reference": .green,
+            "Education": .indigo,
+            "Health & Fitness": .red,
+            "Utilities": .brown,
+            "Other": .gray
+        ])
         .chartYAxis {
             AxisMarks(position: .leading) { value in
                 AxisGridLine()
@@ -73,29 +83,6 @@ struct HourlyUsageChart: View {
             return "\(hour - 12) PM"
         }
     }
-
-    private func getCategoryColorScale() -> [String: Color] {
-        var scale: [String: Color] = [:]
-        for category in UsageCategory.allCases {
-            scale[category.rawValue] = categoryColor(category)
-        }
-        return scale
-    }
-
-    private func categoryColor(_ category: UsageCategory) -> Color {
-        switch category.color {
-        case "blue": return .blue
-        case "teal": return .teal
-        case "purple": return .purple
-        case "pink": return .pink
-        case "orange": return .orange
-        case "green": return .green
-        case "indigo": return .indigo
-        case "red": return .red
-        case "brown": return .brown
-        default: return .gray
-        }
-    }
 }
 
 struct WeeklyUsageChart: View {
@@ -118,7 +105,6 @@ struct WeeklyUsageChart: View {
 
     private var chartView: some View {
         let data = dataManager.getWeeklyUsageDataByCategory()
-        let colorScale = getCategoryColorScale()
 
         return Chart(data.indices, id: \.self) { index in
             let item = data[index]
@@ -129,7 +115,18 @@ struct WeeklyUsageChart: View {
             .foregroundStyle(by: .value("Category", item.category.rawValue))
             .position(by: .value("Category", item.category.rawValue), axis: .horizontal)
         }
-        .chartForegroundStyleScale(colorScale)
+        .chartForegroundStyleScale([
+            "Productivity & Finance": .blue,
+            "Creativity": .teal,
+            "Entertainment": .purple,
+            "Social": .pink,
+            "Games": .orange,
+            "Reading & Reference": .green,
+            "Education": .indigo,
+            "Health & Fitness": .red,
+            "Utilities": .brown,
+            "Other": .gray
+        ])
         .chartYAxis {
             AxisMarks(position: .leading) { value in
                 AxisGridLine()
@@ -141,29 +138,6 @@ struct WeeklyUsageChart: View {
             }
         }
         .frame(height: 120)
-    }
-
-    private func getCategoryColorScale() -> [String: Color] {
-        var scale: [String: Color] = [:]
-        for category in UsageCategory.allCases {
-            scale[category.rawValue] = categoryColor(category)
-        }
-        return scale
-    }
-
-    private func categoryColor(_ category: UsageCategory) -> Color {
-        switch category.color {
-        case "blue": return .blue
-        case "teal": return .teal
-        case "purple": return .purple
-        case "pink": return .pink
-        case "orange": return .orange
-        case "green": return .green
-        case "indigo": return .indigo
-        case "red": return .red
-        case "brown": return .brown
-        default: return .gray
-        }
     }
 }
 
