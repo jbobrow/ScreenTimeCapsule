@@ -64,6 +64,17 @@ enum UsageCategory: String, Codable, CaseIterable {
         case .other: return "gray"
         }
     }
+
+    var sortOrder: Int {
+        switch self {
+        case .productivity: return 0
+        case .creativity: return 1
+        case .social: return 2
+        case .entertainment: return 3
+        case .utilities: return 4
+        case .other: return 5
+        }
+    }
 }
 
 // MARK: - Device Info

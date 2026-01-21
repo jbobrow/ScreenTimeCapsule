@@ -206,6 +206,7 @@ class ScreenTimeDataManager: ObservableObject {
                 from: dateRange.start,
                 to: dateRange.end
             )
+            // Already sorted by hour and category sortOrder in DatabaseManager
             return hourlyEvents
         } catch {
             print("❌ Error fetching hourly usage data: \(error)")
@@ -226,6 +227,7 @@ class ScreenTimeDataManager: ObservableObject {
                 from: dateRange.start,
                 to: dateRange.end
             )
+            // Already sorted by day and category sortOrder in DatabaseManager
             return dailyEvents
         } catch {
             print("❌ Error fetching daily usage data: \(error)")

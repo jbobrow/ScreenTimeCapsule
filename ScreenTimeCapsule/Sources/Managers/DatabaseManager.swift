@@ -243,13 +243,14 @@ class DatabaseManager {
         var result: [(hour: Int, category: UsageCategory, usage: TimeInterval)] = []
         for hour in 0...23 {
             if let categoryData = hourlyData[hour] {
-                for (category, usage) in categoryData {
+                // Sort by category sortOrder for proper stacking (bottom to top)
+                for (category, usage) in categoryData.sorted(by: { $0.key.sortOrder < $1.key.sortOrder }) {
                     result.append((hour: hour, category: category, usage: usage))
                 }
             }
         }
 
-        return result.sorted { $0.hour < $1.hour }
+        return result
     }
 
     // MARK: - Fetch Daily App Usage Events
@@ -332,7 +333,8 @@ class DatabaseManager {
         while currentDate < endDate {
             let dayLabel = dateFormatter.string(from: currentDate)
             if let categoryData = dailyData[dayLabel] {
-                for (category, usage) in categoryData.sorted(by: { $0.key.rawValue < $1.key.rawValue }) {
+                // Sort by category sortOrder for proper stacking (bottom to top)
+                for (category, usage) in categoryData.sorted(by: { $0.key.sortOrder < $1.key.sortOrder }) {
                     result.append((day: dayLabel, category: category, usage: usage))
                 }
             }

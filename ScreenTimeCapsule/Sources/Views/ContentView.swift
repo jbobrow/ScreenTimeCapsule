@@ -117,6 +117,13 @@ struct MainUsageView: View {
                 // Categories List
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
+                        // All Usage option
+                        AllUsageRow(isSelected: selectedCategory == nil)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedCategory = nil
+                            }
+
                         ForEach(UsageCategory.allCases, id: \.self) { category in
                             CategoryRow(category: category, isSelected: selectedCategory == category)
                                 .contentShape(Rectangle())
@@ -206,6 +213,33 @@ struct MainUsageView: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+}
+
+struct AllUsageRow: View {
+    let isSelected: Bool
+    @EnvironmentObject var dataManager: ScreenTimeDataManager
+
+    var body: some View {
+        HStack {
+            Circle()
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 12, height: 12)
+
+            Text("All usage")
+                .font(.subheadline)
+
+            Spacer()
+
+            if let summary = dataManager.usageSummary {
+                Text(dataManager.formatDuration(summary.totalTime))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
     }
 }
 
