@@ -115,6 +115,32 @@ class DatabaseManager {
             }
         }
 
+        // Debug: Check if ZSOURCE column exists and what values it has
+        if deviceId != nil {
+            print("🔍 DEBUG: Checking ZOBJECT.ZSOURCE column...")
+            let sourceCheckQuery = try db.prepare("SELECT ZSOURCE FROM ZOBJECT WHERE ZSTREAMNAME = '/app/usage' LIMIT 5")
+            var sourceCount = 0
+            for row in sourceCheckQuery {
+                sourceCount += 1
+                print("   ZOBJECT.ZSOURCE value: \(row[0] ?? "NULL")")
+            }
+            if sourceCount == 0 {
+                print("   ⚠️ No ZOBJECT rows found")
+            }
+
+            // Check ZSOURCE table contents
+            print("🔍 DEBUG: Checking ZSOURCE table contents...")
+            let zsourceQuery = try db.prepare("SELECT Z_PK, ZDEVICEID, ZSOURCEID FROM ZSOURCE LIMIT 5")
+            var zsourceCount = 0
+            for row in zsourceQuery {
+                zsourceCount += 1
+                print("   ZSOURCE: Z_PK=\(row[0] ?? "NULL"), ZDEVICEID=\(row[1] ?? "NULL"), ZSOURCEID=\(row[2] ?? "NULL")")
+            }
+            if zsourceCount == 0 {
+                print("   ⚠️ No ZSOURCE rows found")
+            }
+        }
+
         // Use raw SQL for better control over joins and filtering
         var sql = """
             SELECT o.ZSTARTDATE, o.ZENDDATE, o.ZVALUESTRING
