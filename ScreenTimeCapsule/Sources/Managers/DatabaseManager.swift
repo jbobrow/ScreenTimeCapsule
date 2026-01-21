@@ -76,8 +76,11 @@ class DatabaseManager {
 
     // MARK: - Fetch App Usage Data
 
-    func fetchAppUsage(from startDate: Date, to endDate: Date) throws -> [AppUsage] {
+    func fetchAppUsage(from startDate: Date, to endDate: Date, deviceId: String? = nil) throws -> [AppUsage] {
         print("🔍 fetchAppUsage() called for range: \(startDate) to \(endDate)")
+        if let deviceId = deviceId {
+            print("🔍 Filtering by device: \(deviceId)")
+        }
 
         let db = try Connection(knowledgeDBPath, readonly: true)
 
@@ -112,35 +115,71 @@ class DatabaseManager {
             }
         }
 
-        let query = objects
-            .filter(zStartDate >= startTimestamp && zStartDate <= endTimestamp)
-            .filter(zStreamName == "/app/usage" || zStreamName == "/app/inFocus")
+        // Use raw SQL for better control over joins and filtering
+        var sql = """
+            SELECT o.ZSTARTDATE, o.ZENDDATE, o.ZVALUESTRING
+            FROM ZOBJECT o
+            """
+
+        // Add device filtering if deviceId is provided
+        if let deviceId = deviceId {
+            sql += """
+                LEFT JOIN ZSOURCE s ON o.ZSOURCE = s.Z_PK
+                WHERE (o.ZSTREAMNAME = '/app/usage' OR o.ZSTREAMNAME = '/app/inFocus')
+                AND o.ZSTARTDATE >= ?
+                AND o.ZSTARTDATE <= ?
+                AND (s.ZDEVICEID = ? OR s.ZSOURCEID = ?)
+                """
+        } else {
+            sql += """
+                WHERE (o.ZSTREAMNAME = '/app/usage' OR o.ZSTREAMNAME = '/app/inFocus')
+                AND o.ZSTARTDATE >= ?
+                AND o.ZSTARTDATE <= ?
+                """
+        }
 
         var rowCount = 0
         var skippedCount = 0
         var eventsWithoutEndDate = 0
 
-        for row in try db.prepare(query) {
+        let rows: Statement
+        if let deviceId = deviceId {
+            rows = try db.prepare(sql, startTimestamp, endTimestamp, deviceId, deviceId)
+        } else {
+            rows = try db.prepare(sql, startTimestamp, endTimestamp)
+        }
+
+        for row in rows {
             rowCount += 1
 
-            // Log first few rows for debugging
-            if rowCount <= 3 {
-                print("🔍 Row \(rowCount): stream=\(row[zStreamName] ?? "nil"), bundleId=\(row[zValueString] ?? "nil"), hasEndDate=\(row[zEndDate] != nil)")
+            // Handle both Int64 and Double types from database for timestamps
+            let eventStartTimestamp: Double
+            if let intVal = row[0] as? Int64 {
+                eventStartTimestamp = Double(intVal)
+            } else if let doubleVal = row[0] as? Double {
+                eventStartTimestamp = doubleVal
+            } else {
+                continue
             }
 
-            guard let bundleId = row[zValueString] else {
+            guard let bundleId = row[2] as? String else {
                 skippedCount += 1
                 continue
             }
 
+            // Log first few rows for debugging
+            if rowCount <= 3 {
+                print("🔍 Row \(rowCount): bundleId=\(bundleId), hasEndDate=\(row[1] != nil)")
+            }
+
             // Calculate duration
             let duration: Double
-            if let end = row[zEndDate] {
-                // Has end date - use actual duration
-                duration = end - row[zStartDate]
+            if let endInt = row[1] as? Int64 {
+                duration = Double(endInt) - eventStartTimestamp
+            } else if let endDouble = row[1] as? Double {
+                duration = endDouble - eventStartTimestamp
             } else {
                 // No end date - use default duration of 60 seconds per event
-                // This means each app usage event counts as 1 minute
                 duration = 60.0
                 eventsWithoutEndDate += 1
             }
@@ -177,8 +216,11 @@ class DatabaseManager {
 
     // MARK: - Fetch Hourly App Usage Events
 
-    func fetchHourlyAppUsageEvents(from startDate: Date, to endDate: Date) throws -> [(hour: Int, category: UsageCategory, usage: TimeInterval)] {
+    func fetchHourlyAppUsageEvents(from startDate: Date, to endDate: Date, deviceId: String? = nil) throws -> [(hour: Int, category: UsageCategory, usage: TimeInterval)] {
         print("🔍 fetchHourlyAppUsageEvents() called for range: \(startDate) to \(endDate)")
+        if let deviceId = deviceId {
+            print("🔍 Filtering by device: \(deviceId)")
+        }
 
         let db = try Connection(knowledgeDBPath, readonly: true)
 
@@ -190,19 +232,40 @@ class DatabaseManager {
         var hourlyData: [Int: [UsageCategory: TimeInterval]] = [:]
         let calendar = Calendar.current
 
-        // Use raw SQL to filter non-null dates
-        let sql = """
-            SELECT ZSTARTDATE, ZENDDATE, ZVALUESTRING
-            FROM ZOBJECT
-            WHERE (ZSTREAMNAME = '/app/usage' OR ZSTREAMNAME = '/app/inFocus')
-            AND ZSTARTDATE IS NOT NULL
-            AND ZSTARTDATE >= ?
-            AND ZSTARTDATE <= ?
-        """
+        // Use raw SQL with optional device filtering
+        var sql = """
+            SELECT o.ZSTARTDATE, o.ZENDDATE, o.ZVALUESTRING
+            FROM ZOBJECT o
+            """
+
+        if let deviceId = deviceId {
+            sql += """
+                LEFT JOIN ZSOURCE s ON o.ZSOURCE = s.Z_PK
+                WHERE (o.ZSTREAMNAME = '/app/usage' OR o.ZSTREAMNAME = '/app/inFocus')
+                AND o.ZSTARTDATE IS NOT NULL
+                AND o.ZSTARTDATE >= ?
+                AND o.ZSTARTDATE <= ?
+                AND (s.ZDEVICEID = ? OR s.ZSOURCEID = ?)
+                """
+        } else {
+            sql += """
+                WHERE (o.ZSTREAMNAME = '/app/usage' OR o.ZSTREAMNAME = '/app/inFocus')
+                AND o.ZSTARTDATE IS NOT NULL
+                AND o.ZSTARTDATE >= ?
+                AND o.ZSTARTDATE <= ?
+                """
+        }
 
         var eventCount = 0
 
-        for row in try db.prepare(sql, startTimestamp, endTimestamp) {
+        let rows: Statement
+        if let deviceId = deviceId {
+            rows = try db.prepare(sql, startTimestamp, endTimestamp, deviceId, deviceId)
+        } else {
+            rows = try db.prepare(sql, startTimestamp, endTimestamp)
+        }
+
+        for row in rows {
             guard let bundleId = row[2] as? String else { continue }
 
             // Handle both Int64 and Double types from database
@@ -259,8 +322,11 @@ class DatabaseManager {
 
     // MARK: - Fetch Daily App Usage Events
 
-    func fetchDailyAppUsageEvents(from startDate: Date, to endDate: Date) throws -> [(day: String, category: UsageCategory, usage: TimeInterval)] {
+    func fetchDailyAppUsageEvents(from startDate: Date, to endDate: Date, deviceId: String? = nil) throws -> [(day: String, category: UsageCategory, usage: TimeInterval)] {
         print("🔍 fetchDailyAppUsageEvents() called for range: \(startDate) to \(endDate)")
+        if let deviceId = deviceId {
+            print("🔍 Filtering by device: \(deviceId)")
+        }
 
         let db = try Connection(knowledgeDBPath, readonly: true)
 
@@ -277,19 +343,40 @@ class DatabaseManager {
         // This prevents duplicate weekday names from colliding
         var dailyData: [Date: [UsageCategory: TimeInterval]] = [:]
 
-        // Use raw SQL to filter non-null dates
-        let sql = """
-            SELECT ZSTARTDATE, ZENDDATE, ZVALUESTRING
-            FROM ZOBJECT
-            WHERE (ZSTREAMNAME = '/app/usage' OR ZSTREAMNAME = '/app/inFocus')
-            AND ZSTARTDATE IS NOT NULL
-            AND ZSTARTDATE >= ?
-            AND ZSTARTDATE <= ?
-        """
+        // Use raw SQL with optional device filtering
+        var sql = """
+            SELECT o.ZSTARTDATE, o.ZENDDATE, o.ZVALUESTRING
+            FROM ZOBJECT o
+            """
+
+        if let deviceId = deviceId {
+            sql += """
+                LEFT JOIN ZSOURCE s ON o.ZSOURCE = s.Z_PK
+                WHERE (o.ZSTREAMNAME = '/app/usage' OR o.ZSTREAMNAME = '/app/inFocus')
+                AND o.ZSTARTDATE IS NOT NULL
+                AND o.ZSTARTDATE >= ?
+                AND o.ZSTARTDATE <= ?
+                AND (s.ZDEVICEID = ? OR s.ZSOURCEID = ?)
+                """
+        } else {
+            sql += """
+                WHERE (o.ZSTREAMNAME = '/app/usage' OR o.ZSTREAMNAME = '/app/inFocus')
+                AND o.ZSTARTDATE IS NOT NULL
+                AND o.ZSTARTDATE >= ?
+                AND o.ZSTARTDATE <= ?
+                """
+        }
 
         var eventCount = 0
 
-        for row in try db.prepare(sql, startTimestamp, endTimestamp) {
+        let rows: Statement
+        if let deviceId = deviceId {
+            rows = try db.prepare(sql, startTimestamp, endTimestamp, deviceId, deviceId)
+        } else {
+            rows = try db.prepare(sql, startTimestamp, endTimestamp)
+        }
+
+        for row in rows {
             guard let bundleId = row[2] as? String else { continue }
 
             // Handle both Int64 and Double types from database

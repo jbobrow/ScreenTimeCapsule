@@ -109,7 +109,8 @@ class ScreenTimeDataManager: ObservableObject {
 
                 let usage = try databaseManager.fetchAppUsage(
                     from: dateRange.start,
-                    to: dateRange.end
+                    to: dateRange.end,
+                    deviceId: selectedDevice?.id
                 )
 
                 print("📊 Fetched \(usage.count) app usage records")
@@ -204,7 +205,8 @@ class ScreenTimeDataManager: ObservableObject {
         do {
             let hourlyEvents = try DatabaseManager.shared.fetchHourlyAppUsageEvents(
                 from: dateRange.start,
-                to: dateRange.end
+                to: dateRange.end,
+                deviceId: selectedDevice?.id
             )
             // Already sorted by hour and category sortOrder in DatabaseManager
             return hourlyEvents
@@ -225,7 +227,8 @@ class ScreenTimeDataManager: ObservableObject {
         do {
             let dailyEvents = try DatabaseManager.shared.fetchDailyAppUsageEvents(
                 from: dateRange.start,
-                to: dateRange.end
+                to: dateRange.end,
+                deviceId: selectedDevice?.id
             )
             // Already sorted by day and category sortOrder in DatabaseManager
             return dailyEvents
