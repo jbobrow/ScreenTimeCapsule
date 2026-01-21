@@ -194,10 +194,7 @@ struct CategoryBreakdownChart: View {
     @EnvironmentObject var dataManager: ScreenTimeDataManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Category Breakdown")
-                .font(.headline)
-
+        VStack(alignment: .leading, spacing: 8) {
             if let summary = dataManager.usageSummary, !summary.categoryBreakdown.isEmpty {
                 HStack(spacing: 16) {
                     ForEach(Array(summary.categoryBreakdown.sorted(by: { $0.value > $1.value })), id: \.key) { category, time in
@@ -218,9 +215,6 @@ struct CategoryBreakdownChart: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-            } else {
-                Text("No category data available")
-                    .foregroundColor(.secondary)
             }
         }
     }
