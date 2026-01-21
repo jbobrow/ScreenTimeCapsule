@@ -79,15 +79,15 @@ class DatabaseManager {
 
         // Define table and columns based on knowledgeC.db schema
         let objects = Table("ZOBJECT")
-        let _ = Expression<Int64>("Z_PK")
+        let zId = Expression<Int64>("Z_PK")
         let zStreamName = Expression<String?>("ZSTREAMNAME")
         let zStartDate = Expression<Double>("ZSTARTDATE")
         let zEndDate = Expression<Double?>("ZENDDATE")
         let zValueString = Expression<String?>("ZVALUESTRING")
 
-        let _ = Table("ZSTRUCTUREDMETADATA")
-        let _ = Expression<String?>("ZIDENTIFIER")
-        let _ = Expression<String?>("ZTITLE")
+        let metadata = Table("ZSTRUCTUREDMETADATA")
+        let zIdentifier = Expression<String?>("ZIDENTIFIER")
+        let zTitle = Expression<String?>("ZTITLE")
 
         var appUsageMap: [String: (name: String, totalTime: TimeInterval)] = [:]
 
@@ -171,6 +171,183 @@ class DatabaseManager {
         return usageArray
     }
 
+    // MARK: - Fetch Hourly App Usage Events
+
+    func fetchHourlyAppUsageEvents(from startDate: Date, to endDate: Date) throws -> [(hour: Int, category: UsageCategory, usage: TimeInterval)] {
+        print("🔍 fetchHourlyAppUsageEvents() called for range: \(startDate) to \(endDate)")
+
+        let db = try Connection(knowledgeDBPath, readonly: true)
+
+        let referenceDate = Date(timeIntervalSinceReferenceDate: 0)
+        let startTimestamp = startDate.timeIntervalSince(referenceDate)
+        let endTimestamp = endDate.timeIntervalSince(referenceDate)
+
+        // Storage for hourly data by category
+        var hourlyData: [Int: [UsageCategory: TimeInterval]] = [:]
+        let calendar = Calendar.current
+
+        // Use raw SQL to filter non-null dates
+        let sql = """
+            SELECT ZSTARTDATE, ZENDDATE, ZVALUESTRING
+            FROM ZOBJECT
+            WHERE (ZSTREAMNAME = '/app/usage' OR ZSTREAMNAME = '/app/inFocus')
+            AND ZSTARTDATE IS NOT NULL
+            AND ZSTARTDATE >= ?
+            AND ZSTARTDATE <= ?
+        """
+
+        var eventCount = 0
+
+        for row in try db.prepare(sql, startTimestamp, endTimestamp) {
+            guard let bundleId = row[2] as? String else { continue }
+
+            // Handle both Int64 and Double types from database
+            let eventStartTimestamp: Double
+            if let intVal = row[0] as? Int64 {
+                eventStartTimestamp = Double(intVal)
+            } else if let doubleVal = row[0] as? Double {
+                eventStartTimestamp = doubleVal
+            } else {
+                continue
+            }
+
+            // Calculate duration
+            let duration: Double
+            if let endInt = row[1] as? Int64 {
+                duration = Double(endInt) - eventStartTimestamp
+            } else if let endDouble = row[1] as? Double {
+                duration = endDouble - eventStartTimestamp
+            } else {
+                duration = 60.0 // Default 1 minute for events without end date
+            }
+
+            // Get the actual event timestamp
+            let eventDate = Date(timeInterval: eventStartTimestamp, since: referenceDate)
+            let hour = calendar.component(.hour, from: eventDate)
+
+            // Categorize the app
+            let category = categorizeApp(bundleId: bundleId)
+
+            // Add to hourly data
+            if hourlyData[hour] == nil {
+                hourlyData[hour] = [:]
+            }
+            hourlyData[hour]![category, default: 0] += duration
+
+            eventCount += 1
+        }
+
+        print("🔍 Processed \(eventCount) events for hourly breakdown")
+
+        // Convert to result format
+        var result: [(hour: Int, category: UsageCategory, usage: TimeInterval)] = []
+        for hour in 0...23 {
+            if let categoryData = hourlyData[hour] {
+                // Sort by category sortOrder for proper stacking (bottom to top)
+                for (category, usage) in categoryData.sorted(by: { $0.key.sortOrder < $1.key.sortOrder }) {
+                    result.append((hour: hour, category: category, usage: usage))
+                }
+            }
+        }
+
+        return result
+    }
+
+    // MARK: - Fetch Daily App Usage Events
+
+    func fetchDailyAppUsageEvents(from startDate: Date, to endDate: Date) throws -> [(day: String, category: UsageCategory, usage: TimeInterval)] {
+        print("🔍 fetchDailyAppUsageEvents() called for range: \(startDate) to \(endDate)")
+
+        let db = try Connection(knowledgeDBPath, readonly: true)
+
+        let referenceDate = Date(timeIntervalSinceReferenceDate: 0)
+        let startTimestamp = startDate.timeIntervalSince(referenceDate)
+        let endTimestamp = endDate.timeIntervalSince(referenceDate)
+
+        let calendar = Calendar.current
+        let daysDiff = calendar.dateComponents([.day], from: startDate, to: endDate).day ?? 0
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = daysDiff <= 7 ? "E" : "MMM d" // "Mon" or "Jan 15"
+
+        // Storage for daily data by actual date (not formatted string)
+        // This prevents duplicate weekday names from colliding
+        var dailyData: [Date: [UsageCategory: TimeInterval]] = [:]
+
+        // Use raw SQL to filter non-null dates
+        let sql = """
+            SELECT ZSTARTDATE, ZENDDATE, ZVALUESTRING
+            FROM ZOBJECT
+            WHERE (ZSTREAMNAME = '/app/usage' OR ZSTREAMNAME = '/app/inFocus')
+            AND ZSTARTDATE IS NOT NULL
+            AND ZSTARTDATE >= ?
+            AND ZSTARTDATE <= ?
+        """
+
+        var eventCount = 0
+
+        for row in try db.prepare(sql, startTimestamp, endTimestamp) {
+            guard let bundleId = row[2] as? String else { continue }
+
+            // Handle both Int64 and Double types from database
+            let eventStartTimestamp: Double
+            if let intVal = row[0] as? Int64 {
+                eventStartTimestamp = Double(intVal)
+            } else if let doubleVal = row[0] as? Double {
+                eventStartTimestamp = doubleVal
+            } else {
+                continue
+            }
+
+            // Calculate duration
+            let duration: Double
+            if let endInt = row[1] as? Int64 {
+                duration = Double(endInt) - eventStartTimestamp
+            } else if let endDouble = row[1] as? Double {
+                duration = endDouble - eventStartTimestamp
+            } else {
+                duration = 60.0 // Default 1 minute for events without end date
+            }
+
+            // Get the actual event timestamp
+            let eventDate = Date(timeInterval: eventStartTimestamp, since: referenceDate)
+            let dayStart = calendar.startOfDay(for: eventDate)
+
+            // Categorize the app
+            let category = categorizeApp(bundleId: bundleId)
+
+            // Add to daily data using actual Date as key
+            if dailyData[dayStart] == nil {
+                dailyData[dayStart] = [:]
+            }
+            dailyData[dayStart]![category, default: 0] += duration
+
+            eventCount += 1
+        }
+
+        print("🔍 Processed \(eventCount) events for daily breakdown")
+        print("🔍 Found \(dailyData.keys.count) unique days")
+
+        // Convert to result format, maintaining chronological order
+        var result: [(day: String, category: UsageCategory, usage: TimeInterval)] = []
+
+        // Sort dates chronologically
+        let sortedDates = dailyData.keys.sorted()
+
+        for dayStart in sortedDates {
+            let dayLabel = dateFormatter.string(from: dayStart)
+
+            if let categoryData = dailyData[dayStart] {
+                print("🔍 Day: \(dayLabel) (\(dayStart)) - Categories: \(categoryData.keys.count)")
+                // Sort by category sortOrder for proper stacking (bottom to top)
+                for (category, usage) in categoryData.sorted(by: { $0.key.sortOrder < $1.key.sortOrder }) {
+                    result.append((day: dayLabel, category: category, usage: usage))
+                }
+            }
+        }
+
+        return result
+    }
+
     // MARK: - Fetch Devices
 
     func fetchDevices() throws -> [DeviceInfo] {
@@ -235,37 +412,45 @@ class DatabaseManager {
     private func categorizeApp(bundleId: String) -> UsageCategory {
         let lowerBundleId = bundleId.lowercased()
 
+        // Productivity: Development tools, office apps, finance
         if lowerBundleId.contains("xcode") || lowerBundleId.contains("vscode") ||
+           lowerBundleId.contains("sublime") || lowerBundleId.contains("atom") ||
            lowerBundleId.contains("finance") || lowerBundleId.contains("numbers") ||
            lowerBundleId.contains("excel") || lowerBundleId.contains("word") ||
-           lowerBundleId.contains("pages") {
+           lowerBundleId.contains("pages") || lowerBundleId.contains("keynote") {
             return .productivity
-        } else if lowerBundleId.contains("photoshop") || lowerBundleId.contains("illustrator") ||
-                  lowerBundleId.contains("sketch") || lowerBundleId.contains("figma") ||
-                  lowerBundleId.contains("finalcut") || lowerBundleId.contains("logic") {
+        }
+
+        // Creativity: Design, photo/video editing, music production
+        else if lowerBundleId.contains("photoshop") || lowerBundleId.contains("illustrator") ||
+                lowerBundleId.contains("sketch") || lowerBundleId.contains("figma") ||
+                lowerBundleId.contains("finalcut") || lowerBundleId.contains("logic") ||
+                lowerBundleId.contains("garageband") || lowerBundleId.contains("premiere") {
             return .creativity
-        } else if lowerBundleId.contains("music") || lowerBundleId.contains("spotify") ||
-                  lowerBundleId.contains("netflix") || lowerBundleId.contains("youtube") ||
-                  lowerBundleId.contains("tv") {
-            return .entertainment
-        } else if lowerBundleId.contains("message") || lowerBundleId.contains("slack") ||
-                  lowerBundleId.contains("discord") || lowerBundleId.contains("twitter") ||
-                  lowerBundleId.contains("facebook") || lowerBundleId.contains("instagram") {
+        }
+
+        // Social: Messaging and social media
+        else if lowerBundleId.contains("message") || lowerBundleId.contains("slack") ||
+                lowerBundleId.contains("discord") || lowerBundleId.contains("twitter") ||
+                lowerBundleId.contains("facebook") || lowerBundleId.contains("instagram") ||
+                lowerBundleId.contains("whatsapp") || lowerBundleId.contains("telegram") {
             return .social
-        } else if lowerBundleId.contains("game") || lowerBundleId.contains("steam") {
-            return .games
-        } else if lowerBundleId.contains("books") || lowerBundleId.contains("kindle") ||
-                  lowerBundleId.contains("safari") || lowerBundleId.contains("chrome") ||
-                  lowerBundleId.contains("firefox") {
-            return .reading
-        } else if lowerBundleId.contains("health") || lowerBundleId.contains("fitness") {
-            return .health
-        } else if lowerBundleId.contains("calculator") || lowerBundleId.contains("clock") ||
-                  lowerBundleId.contains("weather") || lowerBundleId.contains("calendar") ||
-                  lowerBundleId.contains("reminders") || lowerBundleId.contains("notes") ||
-                  lowerBundleId.contains("finder") || lowerBundleId.contains("systemsettings") ||
-                  lowerBundleId.contains("terminal") || lowerBundleId.contains("textedit") ||
-                  lowerBundleId.contains("preview") {
+        }
+
+        // Entertainment: Media consumption and games
+        else if lowerBundleId.contains("music") || lowerBundleId.contains("spotify") ||
+                lowerBundleId.contains("netflix") || lowerBundleId.contains("youtube") ||
+                lowerBundleId.contains("tv") || lowerBundleId.contains("game") ||
+                lowerBundleId.contains("steam") || lowerBundleId.contains("hulu") {
+            return .entertainment
+        }
+
+        // Utilities: System apps, browsers, file managers, terminal
+        else if lowerBundleId.contains("finder") || lowerBundleId.contains("terminal") ||
+                lowerBundleId.contains("settings") || lowerBundleId.contains("preferences") ||
+                lowerBundleId.contains("safari") || lowerBundleId.contains("chrome") ||
+                lowerBundleId.contains("firefox") || lowerBundleId.contains("calendar") ||
+                lowerBundleId.contains("mail") || lowerBundleId.contains("notes") {
             return .utilities
         }
 

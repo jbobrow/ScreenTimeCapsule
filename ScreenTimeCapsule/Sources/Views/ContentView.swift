@@ -65,73 +65,21 @@ struct MainUsageView: View {
                 .padding()
 
                 Divider()
-
-                // Usage Summary with Navigation
-                if let summary = dataManager.usageSummary {
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack {
-                            Text("Usage")
-                                .foregroundColor(.secondary)
-                            Spacer()
-
-                            // Time Period Navigation
-                            HStack(spacing: 4) {
-                                Button(action: { dataManager.navigateToPrevious() }) {
-                                    Image(systemName: "chevron.left")
-                                        .font(.system(size: 12, weight: .medium))
-                                }
-                                .buttonStyle(.plain)
-                                .help("Previous")
-
-                                Menu {
-                                    ForEach(TimePeriod.allCases.filter { $0 != .custom }, id: \.self) { period in
-                                        Button(action: {
-                                            dataManager.selectedTimePeriod = period
-                                        }) {
-                                            Text(period.rawValue)
-                                        }
-                                    }
-                                } label: {
-                                    HStack(spacing: 4) {
-                                        Text(dataManager.currentPeriodLabel)
-                                            .font(.subheadline)
-                                            .foregroundColor(.primary)
-                                        Image(systemName: "chevron.down")
-                                            .font(.system(size: 10, weight: .medium))
-                                            .foregroundColor(.secondary)
-                                    }
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                }
-                                .menuStyle(.borderlessButton)
-                                .frame(minWidth: 140)
-
-                                Button(action: { dataManager.navigateToNext() }) {
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 12, weight: .medium))
-                                }
-                                .buttonStyle(.plain)
-                                .help("Next")
-                                .disabled(!dataManager.canNavigateForward)
-                            }
-                        }
-
-                        Text(summary.formattedTotalTime)
-                            .font(.system(size: 48, weight: .medium))
-
-                        // Date range label
-                        Text(dataManager.currentDateRangeLabel)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding()
-                }
-
-                Divider()
+                
+                Text("Categories")
+                    .foregroundColor(.secondary)
+                    .padding(16)
 
                 // Categories List
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
+                        // All Usage option
+                        AllUsageRow(isSelected: selectedCategory == nil)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedCategory = nil
+                            }
+
                         ForEach(UsageCategory.allCases, id: \.self) { category in
                             CategoryRow(category: category, isSelected: selectedCategory == category)
                                 .contentShape(Rectangle())
@@ -173,6 +121,58 @@ struct MainUsageView: View {
         } detail: {
             // Detail View
             VStack(spacing: 0) {
+
+                // Usage Summary with Navigation
+                if let summary = dataManager.usageSummary {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Usage")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+                            
+                            Text(summary.formattedTotalTime)
+                                .font(.system(size: 48, weight: .medium))
+                        }
+                        Spacer()
+
+                        VStack(alignment: .center, spacing: 16) {
+                            // Time Period Navigation
+                            HStack(spacing: 4) {
+                                Button(action: { dataManager.navigateToPrevious() }) {
+                                    Image(systemName: "chevron.left")
+                                        .font(.system(size: 12, weight: .medium))
+                                }
+                                .buttonStyle(.plain)
+                                .help("Previous \(dataManager.selectedTimePeriod.rawValue)")
+                                
+                                Picker("", selection: $dataManager.selectedTimePeriod) {
+                                    ForEach(TimePeriod.allCases.filter { $0 != .custom }, id: \.self) { period in
+                                        Text(period.rawValue).tag(period)
+                                    }
+                                }
+                                .labelsHidden()
+                                .frame(width: 140)
+                                
+                                Button(action: { dataManager.navigateToNext() }) {
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .medium))
+                                }
+                                .buttonStyle(.plain)
+                                .help("Next \(dataManager.selectedTimePeriod.rawValue)")
+                                .disabled(!dataManager.canNavigateForward)
+                            }
+                            
+                            // Date range label
+                            Text(dataManager.currentDateRangeLabel)
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding()
+                }
+
+                Divider()
+
                 // Charts
                 UsageChartView()
                     .frame(height: 300)
@@ -224,6 +224,33 @@ struct MainUsageView: View {
     }
 }
 
+struct AllUsageRow: View {
+    let isSelected: Bool
+    @EnvironmentObject var dataManager: ScreenTimeDataManager
+
+    var body: some View {
+        HStack {
+            Circle()
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 12, height: 12)
+
+            Text("All usage")
+                .font(.subheadline)
+
+            Spacer()
+
+            if let summary = dataManager.usageSummary {
+                Text(dataManager.formatDuration(summary.totalTime))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
+    }
+}
+
 struct CategoryRow: View {
     let category: UsageCategory
     let isSelected: Bool
@@ -259,7 +286,6 @@ struct CategoryRow: View {
         case "green": return .green
         case "indigo": return .indigo
         case "red": return .red
-        case "brown": return .brown
         default: return .gray
         }
     }
