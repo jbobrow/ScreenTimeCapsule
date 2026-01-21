@@ -23,9 +23,10 @@ struct HourlyUsageChart: View {
     var body: some View {
         let hourlyData = dataManager.getHourlyUsageDataByCategory()
 
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 24) {
             Text("Usage by Hour")
                 .font(.headline)
+                .foregroundColor(.secondary)
 
             if hourlyData.isEmpty {
                 Text("No usage data available")
@@ -201,12 +202,6 @@ struct CategoryBreakdownChart: View {
                 HStack(spacing: 16) {
                     ForEach(Array(summary.categoryBreakdown.sorted(by: { $0.value > $1.value })), id: \.key) { category, time in
                         VStack(alignment: .leading, spacing: 4) {
-
-                            Text(dataManager.formatDuration(time))
-                                .font(.title2)
-                                .fontWeight(.medium)
-                                .padding(.leading, 16)
-
                             HStack(spacing: 6) {
                                 Circle()
                                     .fill(categoryColor(category))
@@ -215,10 +210,14 @@ struct CategoryBreakdownChart: View {
                                     .font(.body)
                                     .lineLimit(1)
                             }
+                            Text(dataManager.formatDuration(time))
+                                .font(.title2)
+                                .fontWeight(.medium)
+                                .padding(.leading, 16)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 8)
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, 12)
                     }
                     .background(Color.black.opacity(0.05))
                     .cornerRadius(12)
@@ -243,5 +242,5 @@ struct CategoryBreakdownChart: View {
     UsageChartView()
         .environmentObject(ScreenTimeDataManager.shared)
         .padding()
-        .frame(width: 800, height: 300)
+        .frame(width: 800, height: 340)
 }
