@@ -5,7 +5,7 @@ struct UsageChartView: View {
     @EnvironmentObject var dataManager: ScreenTimeDataManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 16) {
             if dataManager.selectedTimePeriod == .today || dataManager.selectedTimePeriod == .yesterday {
                 HourlyUsageChart()
             } else {
@@ -42,6 +42,7 @@ struct HourlyUsageChart: View {
                         .foregroundStyle(by: .value("Category", data.category.rawValue))
                     }
                 }
+                .chartLegend(.hidden)
                 .chartForegroundStyleScale(categoryColorScale())
                 .chartXScale(domain: 0...24)
                 .chartXAxis {
@@ -144,6 +145,7 @@ struct WeeklyUsageChart: View {
                         .foregroundStyle(by: .value("Category", data.category.rawValue))
                     }
                 }
+                .chartLegend(.hidden)
                 .chartForegroundStyleScale(categoryColorScale())
                 .chartYAxis {
                     AxisMarks(position: .leading) { value in
@@ -199,21 +201,27 @@ struct CategoryBreakdownChart: View {
                 HStack(spacing: 16) {
                     ForEach(Array(summary.categoryBreakdown.sorted(by: { $0.value > $1.value })), id: \.key) { category, time in
                         VStack(alignment: .leading, spacing: 4) {
+
+                            Text(dataManager.formatDuration(time))
+                                .font(.title2)
+                                .fontWeight(.medium)
+                                .padding(.leading, 16)
+
                             HStack(spacing: 6) {
                                 Circle()
                                     .fill(categoryColor(category))
-                                    .frame(width: 8, height: 8)
+                                    .frame(width: 12, height: 12)
                                 Text(category.rawValue)
-                                    .font(.caption)
+                                    .font(.body)
                                     .lineLimit(1)
                             }
-
-                            Text(dataManager.formatDuration(time))
-                                .font(.subheadline)
-                                .fontWeight(.medium)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 16)
                     }
+                    .background(Color.black.opacity(0.05))
+                    .cornerRadius(12)
                 }
             }
         }
