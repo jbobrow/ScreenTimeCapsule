@@ -31,12 +31,25 @@ struct HourlyUsageChart: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
                 Chart {
-                    ForEach(dataManager.getHourlyUsageData(), id: \.hour) { data in
+                    ForEach(Array(dataManager.getHourlyUsageDataByCategory().enumerated()), id: \.offset) { index, data in
                         BarMark(
-                            x: .value("Hour", hourLabel(data.hour)),
-                            y: .value("Usage", data.usage / 60) // Convert to minutes
+                            x: .value("Hour", data.hour),
+                            y: .value("Usage", data.usage / 60), // Convert to minutes
+                            stacking: .standard
                         )
-                        .foregroundStyle(.blue.gradient)
+                        .foregroundStyle(by: .value("Category", data.category.rawValue))
+                    }
+                }
+                .chartForegroundStyleScale(categoryColorScale())
+                .chartXScale(domain: 0...23)
+                .chartXAxis {
+                    AxisMarks(values: Array(0...23)) { value in
+                        if let hour = value.as(Int.self) {
+                            AxisValueLabel {
+                                Text(hourLabel(hour))
+                                    .font(.caption2)
+                            }
+                        }
                     }
                 }
                 .chartYAxis {
@@ -63,6 +76,34 @@ struct HourlyUsageChart: View {
             return "12 PM"
         } else {
             return "\(hour - 12) PM"
+        }
+    }
+
+    private func categoryColorScale() -> KeyValuePairs<String, Color> {
+        return [
+            UsageCategory.productivity.rawValue: categoryColor(.productivity),
+            UsageCategory.creativity.rawValue: categoryColor(.creativity),
+            UsageCategory.entertainment.rawValue: categoryColor(.entertainment),
+            UsageCategory.social.rawValue: categoryColor(.social),
+            UsageCategory.games.rawValue: categoryColor(.games),
+            UsageCategory.reading.rawValue: categoryColor(.reading),
+            UsageCategory.education.rawValue: categoryColor(.education),
+            UsageCategory.health.rawValue: categoryColor(.health),
+            UsageCategory.other.rawValue: categoryColor(.other)
+        ]
+    }
+
+    private func categoryColor(_ category: UsageCategory) -> Color {
+        switch category.color {
+        case "blue": return .blue
+        case "teal": return .teal
+        case "purple": return .purple
+        case "pink": return .pink
+        case "orange": return .orange
+        case "green": return .green
+        case "indigo": return .indigo
+        case "red": return .red
+        default: return .gray
         }
     }
 }

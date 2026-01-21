@@ -197,6 +197,32 @@ class ScreenTimeDataManager: ObservableObject {
             .sorted { $0.hour < $1.hour }
     }
 
+    func getHourlyUsageDataByCategory() -> [(hour: Int, category: UsageCategory, usage: TimeInterval)] {
+        // Create a dictionary to store usage by hour and category
+        var hourlyData: [Int: [UsageCategory: TimeInterval]] = [:]
+
+        // Aggregate usage by hour and category
+        for app in currentUsage {
+            let hour = Calendar.current.component(.hour, from: app.startDate)
+            if hourlyData[hour] == nil {
+                hourlyData[hour] = [:]
+            }
+            hourlyData[hour]![app.category, default: 0] += app.totalTime
+        }
+
+        // Flatten the data structure and sort
+        var result: [(hour: Int, category: UsageCategory, usage: TimeInterval)] = []
+        for hour in 0...23 {
+            if let categoryData = hourlyData[hour] {
+                for (category, usage) in categoryData {
+                    result.append((hour: hour, category: category, usage: usage))
+                }
+            }
+        }
+
+        return result.sorted { $0.hour < $1.hour }
+    }
+
     func getWeeklyUsageData() -> [(day: String, usage: TimeInterval)] {
         // Works for any multi-day period
         let dateRange = getCurrentDateRange()
