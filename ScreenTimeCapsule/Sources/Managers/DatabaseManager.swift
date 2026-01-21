@@ -201,12 +201,22 @@ class DatabaseManager {
         for row in try db.prepare(sql, startTimestamp, endTimestamp) {
             guard let bundleId = row[2] as? String else { continue }
 
-            let eventStartTimestamp = row[0] as! Double
+            // Handle both Int64 and Double types from database
+            let eventStartTimestamp: Double
+            if let intVal = row[0] as? Int64 {
+                eventStartTimestamp = Double(intVal)
+            } else if let doubleVal = row[0] as? Double {
+                eventStartTimestamp = doubleVal
+            } else {
+                continue
+            }
 
             // Calculate duration
             let duration: Double
-            if let end = row[1] as? Double {
-                duration = end - eventStartTimestamp
+            if let endInt = row[1] as? Int64 {
+                duration = Double(endInt) - eventStartTimestamp
+            } else if let endDouble = row[1] as? Double {
+                duration = endDouble - eventStartTimestamp
             } else {
                 duration = 60.0 // Default 1 minute for events without end date
             }
@@ -276,12 +286,22 @@ class DatabaseManager {
         for row in try db.prepare(sql, startTimestamp, endTimestamp) {
             guard let bundleId = row[2] as? String else { continue }
 
-            let eventStartTimestamp = row[0] as! Double
+            // Handle both Int64 and Double types from database
+            let eventStartTimestamp: Double
+            if let intVal = row[0] as? Int64 {
+                eventStartTimestamp = Double(intVal)
+            } else if let doubleVal = row[0] as? Double {
+                eventStartTimestamp = doubleVal
+            } else {
+                continue
+            }
 
             // Calculate duration
             let duration: Double
-            if let end = row[1] as? Double {
-                duration = end - eventStartTimestamp
+            if let endInt = row[1] as? Int64 {
+                duration = Double(endInt) - eventStartTimestamp
+            } else if let endDouble = row[1] as? Double {
+                duration = endDouble - eventStartTimestamp
             } else {
                 duration = 60.0 // Default 1 minute for events without end date
             }
