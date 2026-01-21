@@ -357,51 +357,59 @@ class DatabaseManager {
     func fetchDevices() throws -> [DeviceInfo] {
         var allDevices: [String: DeviceInfo] = [:] // Use dictionary to deduplicate by device ID
 
-        // Check if Screen Time directory exists
-        guard fileManager.fileExists(atPath: screenTimeDirectory) else {
+        // Try to get devices from Screen Time directory first
+        if fileManager.fileExists(atPath: screenTimeDirectory) {
+            print("🔍 Scanning Screen Time directory: \(screenTimeDirectory)")
+
+            // Get all files in the Screen Time directory
+            do {
+                let contents = try fileManager.contentsOfDirectory(atPath: screenTimeDirectory)
+                let sqliteFiles = contents.filter { $0.hasSuffix(".sqlite") }
+
+                print("📁 Found \(sqliteFiles.count) database files:")
+                for file in sqliteFiles {
+                    print("   - \(file)")
+                }
+
+                // Try to read devices from each database file
+                for filename in sqliteFiles {
+                    let dbPath = (screenTimeDirectory as NSString).appendingPathComponent(filename)
+
+                    do {
+                        let db = try Connection(dbPath, readonly: true)
+                        let devices = try fetchDevicesFromScreenTimeDB(db: db, source: filename)
+
+                        // Add devices to our collection (deduplicating by ID)
+                        for device in devices {
+                            allDevices[device.id] = device
+                        }
+
+                        print("✅ Successfully read \(devices.count) device(s) from \(filename)")
+                    } catch {
+                        print("⚠️ Could not read devices from \(filename): \(error)")
+                        // Continue to next database file
+                        continue
+                    }
+                }
+            } catch {
+                print("❌ Error reading Screen Time directory: \(error)")
+            }
+        } else {
             print("⚠️ Screen Time directory not found: \(screenTimeDirectory)")
-            // Return current device only if Screen Time directory doesn't exist
-            return [DeviceInfo(
-                id: getCurrentDeviceID(),
-                name: Host.current().localizedName ?? "This Mac",
-                model: "Mac"
-            )]
         }
 
-        print("🔍 Scanning Screen Time directory: \(screenTimeDirectory)")
-
-        // Get all files in the Screen Time directory
-        do {
-            let contents = try fileManager.contentsOfDirectory(atPath: screenTimeDirectory)
-            let sqliteFiles = contents.filter { $0.hasSuffix(".sqlite") }
-
-            print("📁 Found \(sqliteFiles.count) database files:")
-            for file in sqliteFiles {
-                print("   - \(file)")
-            }
-
-            // Try to read devices from each database file
-            for filename in sqliteFiles {
-                let dbPath = (screenTimeDirectory as NSString).appendingPathComponent(filename)
-
-                do {
-                    let db = try Connection(dbPath, readonly: true)
-                    let devices = try fetchDevicesFromDatabase(db: db, source: filename)
-
-                    // Add devices to our collection (deduplicating by ID)
-                    for device in devices {
-                        allDevices[device.id] = device
-                    }
-
-                    print("✅ Successfully read \(devices.count) device(s) from \(filename)")
-                } catch {
-                    print("⚠️ Could not read devices from \(filename): \(error)")
-                    // Continue to next database file
-                    continue
+        // If no devices found from Screen Time, try Knowledge database
+        if allDevices.isEmpty {
+            print("🔍 Attempting to extract devices from Knowledge database")
+            do {
+                let knowledgeDevices = try fetchDevicesFromKnowledgeDB()
+                for device in knowledgeDevices {
+                    allDevices[device.id] = device
                 }
+                print("✅ Found \(knowledgeDevices.count) device(s) from Knowledge database")
+            } catch {
+                print("⚠️ Could not extract devices from Knowledge database: \(error)")
             }
-        } catch {
-            print("❌ Error reading Screen Time directory: \(error)")
         }
 
         // If we found devices, return them
@@ -419,7 +427,7 @@ class DatabaseManager {
         )]
     }
 
-    private func fetchDevicesFromDatabase(db: Connection, source: String) throws -> [DeviceInfo] {
+    private func fetchDevicesFromScreenTimeDB(db: Connection, source: String) throws -> [DeviceInfo] {
         var deviceList: [DeviceInfo] = []
 
         // Try to fetch devices from ZDEVICE table
@@ -453,6 +461,96 @@ class DatabaseManager {
         }
 
         return deviceList
+    }
+
+    private func fetchDevicesFromKnowledgeDB() throws -> [DeviceInfo] {
+        var deviceList: [DeviceInfo] = []
+        var deviceMap: [String: DeviceInfo] = [:]
+
+        guard fileManager.fileExists(atPath: knowledgeDBPath) else {
+            print("   ℹ️ Knowledge database not found")
+            return deviceList
+        }
+
+        let db = try Connection(knowledgeDBPath, readonly: true)
+
+        // Try to fetch from ZSOURCE table which contains device information
+        do {
+            let sources = Table("ZSOURCE")
+            let zDeviceId = Expression<String?>("ZDEVICEID")
+            let zSourceId = Expression<String?>("ZSOURCEID")
+            let zBundleId = Expression<String?>("ZBUNDLEID")
+
+            for row in try db.prepare(sources) {
+                // Try to get device ID from various fields
+                var deviceId: String? = row[zDeviceId] ?? row[zSourceId]
+
+                // Skip if no device ID found
+                guard let devId = deviceId, !devId.isEmpty else { continue }
+
+                // Only add if not already in our map
+                if deviceMap[devId] == nil {
+                    // Try to get a friendly name from the bundle ID or use device ID
+                    let name: String
+                    if let bundleId = row[zBundleId], !bundleId.isEmpty {
+                        // Extract app name from bundle ID as a hint for device type
+                        name = devId.prefix(8).uppercased() + " Device"
+                    } else {
+                        name = devId.prefix(8).uppercased() + " Device"
+                    }
+
+                    deviceMap[devId] = DeviceInfo(
+                        id: devId,
+                        name: name,
+                        model: "Unknown"
+                    )
+                }
+            }
+
+            print("   ℹ️ Read \(deviceMap.count) unique devices from ZSOURCE table")
+        } catch {
+            print("   ℹ️ Could not read ZSOURCE table: \(error)")
+        }
+
+        // If ZSOURCE didn't work, try extracting device IDs from sync stream names
+        if deviceMap.isEmpty {
+            do {
+                let sql = """
+                    SELECT DISTINCT ZSTREAMNAME
+                    FROM ZOBJECT
+                    WHERE ZSTREAMNAME LIKE '/knowledge-sync-%'
+                    LIMIT 100
+                """
+
+                var syncDeviceIds = Set<String>()
+                for row in try db.prepare(sql) {
+                    if let streamName = row[0] as? String {
+                        // Extract UUID from stream names like "/knowledge-sync-addition-window/UUID"
+                        let components = streamName.split(separator: "/")
+                        if components.count >= 3,
+                           let uuid = components.last,
+                           uuid.count == 36 { // UUID format check
+                            syncDeviceIds.insert(String(uuid))
+                        }
+                    }
+                }
+
+                for deviceId in syncDeviceIds {
+                    let shortId = deviceId.prefix(8).uppercased()
+                    deviceMap[deviceId] = DeviceInfo(
+                        id: deviceId,
+                        name: "\(shortId) Device",
+                        model: "Unknown"
+                    )
+                }
+
+                print("   ℹ️ Extracted \(deviceMap.count) device IDs from sync streams")
+            } catch {
+                print("   ℹ️ Could not extract device IDs from sync streams: \(error)")
+            }
+        }
+
+        return Array(deviceMap.values)
     }
 
     // MARK: - Helper Methods
