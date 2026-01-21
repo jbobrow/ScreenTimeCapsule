@@ -5,7 +5,7 @@ struct UsageChartView: View {
     @EnvironmentObject var dataManager: ScreenTimeDataManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 24) {
             if dataManager.selectedTimePeriod == .today || dataManager.selectedTimePeriod == .yesterday {
                 HourlyUsageChart()
             } else {
@@ -21,17 +21,19 @@ struct HourlyUsageChart: View {
     @EnvironmentObject var dataManager: ScreenTimeDataManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let hourlyData = dataManager.getHourlyUsageDataByCategory()
+
+        VStack(alignment: .leading, spacing: 12) {
             Text("Usage by Hour")
                 .font(.headline)
 
-            if dataManager.currentUsage.isEmpty {
+            if hourlyData.isEmpty {
                 Text("No usage data available")
                     .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .frame(maxWidth: .infinity, minHeight: 200, alignment: .center)
             } else {
                 Chart {
-                    ForEach(Array(dataManager.getHourlyUsageDataByCategory().enumerated()), id: \.offset) { index, data in
+                    ForEach(Array(hourlyData.enumerated()), id: \.offset) { _, data in
                         BarMark(
                             x: .value("Hour", data.hour),
                             y: .value("Usage", data.usage / 60), // Convert to minutes
@@ -58,11 +60,18 @@ struct HourlyUsageChart: View {
                         AxisValueLabel {
                             if let minutes = value.as(Double.self) {
                                 Text(yAxisLabel(minutes))
+                                    .font(.caption2)
                             }
                         }
                     }
                 }
-                .frame(height: 120)
+                .frame(height: 200)
+            }
+        }
+        .onAppear {
+            print("📊 HourlyUsageChart - Data points: \(hourlyData.count)")
+            if !hourlyData.isEmpty {
+                print("📊 Sample data: \(hourlyData.prefix(5))")
             }
         }
     }
@@ -114,17 +123,19 @@ struct WeeklyUsageChart: View {
     @EnvironmentObject var dataManager: ScreenTimeDataManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let dailyData = dataManager.getDailyUsageDataByCategory()
+
+        VStack(alignment: .leading, spacing: 12) {
             Text("Usage by Day")
                 .font(.headline)
 
-            if dataManager.currentUsage.isEmpty {
+            if dailyData.isEmpty {
                 Text("No usage data available")
                     .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .frame(maxWidth: .infinity, minHeight: 200, alignment: .center)
             } else {
                 Chart {
-                    ForEach(Array(dataManager.getDailyUsageDataByCategory().enumerated()), id: \.offset) { index, data in
+                    ForEach(Array(dailyData.enumerated()), id: \.offset) { _, data in
                         BarMark(
                             x: .value("Day", data.day),
                             y: .value("Usage", data.usage / 3600), // Convert to hours
@@ -140,11 +151,18 @@ struct WeeklyUsageChart: View {
                         AxisValueLabel {
                             if let hours = value.as(Double.self) {
                                 Text("\(Int(hours))h")
+                                    .font(.caption2)
                             }
                         }
                     }
                 }
-                .frame(height: 120)
+                .frame(height: 200)
+            }
+        }
+        .onAppear {
+            print("📊 WeeklyUsageChart - Data points: \(dailyData.count)")
+            if !dailyData.isEmpty {
+                print("📊 Sample data: \(dailyData.prefix(5))")
             }
         }
     }
@@ -176,12 +194,12 @@ struct CategoryBreakdownChart: View {
     @EnvironmentObject var dataManager: ScreenTimeDataManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Category Breakdown")
                 .font(.headline)
 
             if let summary = dataManager.usageSummary, !summary.categoryBreakdown.isEmpty {
-                HStack(spacing: 12) {
+                HStack(spacing: 16) {
                     ForEach(Array(summary.categoryBreakdown.sorted(by: { $0.value > $1.value })), id: \.key) { category, time in
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 6) {
