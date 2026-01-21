@@ -81,22 +81,37 @@ struct MainUsageView: View {
                                         .font(.system(size: 12, weight: .medium))
                                 }
                                 .buttonStyle(.plain)
-                                .help("Previous \(dataManager.selectedTimePeriod.rawValue)")
+                                .help("Previous")
 
-                                Picker("", selection: $dataManager.selectedTimePeriod) {
+                                Menu {
                                     ForEach(TimePeriod.allCases.filter { $0 != .custom }, id: \.self) { period in
-                                        Text(period.rawValue).tag(period)
+                                        Button(action: {
+                                            dataManager.selectedTimePeriod = period
+                                        }) {
+                                            Text(period.rawValue)
+                                        }
                                     }
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Text(dataManager.currentPeriodLabel)
+                                            .font(.subheadline)
+                                            .foregroundColor(.primary)
+                                        Image(systemName: "chevron.down")
+                                            .font(.system(size: 10, weight: .medium))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
                                 }
-                                .labelsHidden()
-                                .frame(width: 140)
+                                .menuStyle(.borderlessButton)
+                                .frame(minWidth: 140)
 
                                 Button(action: { dataManager.navigateToNext() }) {
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 12, weight: .medium))
                                 }
                                 .buttonStyle(.plain)
-                                .help("Next \(dataManager.selectedTimePeriod.rawValue)")
+                                .help("Next")
                                 .disabled(!dataManager.canNavigateForward)
                             }
                         }
@@ -244,6 +259,7 @@ struct CategoryRow: View {
         case "green": return .green
         case "indigo": return .indigo
         case "red": return .red
+        case "brown": return .brown
         default: return .gray
         }
     }

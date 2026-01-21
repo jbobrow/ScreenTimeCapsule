@@ -79,15 +79,15 @@ class DatabaseManager {
 
         // Define table and columns based on knowledgeC.db schema
         let objects = Table("ZOBJECT")
-        let zId = Expression<Int64>("Z_PK")
+        let _ = Expression<Int64>("Z_PK")
         let zStreamName = Expression<String?>("ZSTREAMNAME")
         let zStartDate = Expression<Double>("ZSTARTDATE")
         let zEndDate = Expression<Double?>("ZENDDATE")
         let zValueString = Expression<String?>("ZVALUESTRING")
 
-        let metadata = Table("ZSTRUCTUREDMETADATA")
-        let zIdentifier = Expression<String?>("ZIDENTIFIER")
-        let zTitle = Expression<String?>("ZTITLE")
+        let _ = Table("ZSTRUCTUREDMETADATA")
+        let _ = Expression<String?>("ZIDENTIFIER")
+        let _ = Expression<String?>("ZTITLE")
 
         var appUsageMap: [String: (name: String, totalTime: TimeInterval)] = [:]
 
@@ -235,9 +235,10 @@ class DatabaseManager {
     private func categorizeApp(bundleId: String) -> UsageCategory {
         let lowerBundleId = bundleId.lowercased()
 
-        if lowerBundleId.contains("xcode") || lowerBundleId.contains("terminal") ||
-           lowerBundleId.contains("vscode") || lowerBundleId.contains("finance") ||
-           lowerBundleId.contains("numbers") || lowerBundleId.contains("excel") {
+        if lowerBundleId.contains("xcode") || lowerBundleId.contains("vscode") ||
+           lowerBundleId.contains("finance") || lowerBundleId.contains("numbers") ||
+           lowerBundleId.contains("excel") || lowerBundleId.contains("word") ||
+           lowerBundleId.contains("pages") {
             return .productivity
         } else if lowerBundleId.contains("photoshop") || lowerBundleId.contains("illustrator") ||
                   lowerBundleId.contains("sketch") || lowerBundleId.contains("figma") ||
@@ -259,6 +260,13 @@ class DatabaseManager {
             return .reading
         } else if lowerBundleId.contains("health") || lowerBundleId.contains("fitness") {
             return .health
+        } else if lowerBundleId.contains("calculator") || lowerBundleId.contains("clock") ||
+                  lowerBundleId.contains("weather") || lowerBundleId.contains("calendar") ||
+                  lowerBundleId.contains("reminders") || lowerBundleId.contains("notes") ||
+                  lowerBundleId.contains("finder") || lowerBundleId.contains("systemsettings") ||
+                  lowerBundleId.contains("terminal") || lowerBundleId.contains("textedit") ||
+                  lowerBundleId.contains("preview") {
+            return .utilities
         }
 
         return .other
