@@ -269,8 +269,9 @@ class DatabaseManager {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = daysDiff <= 7 ? "E" : "MMM d" // "Mon" or "Jan 15"
 
-        // Storage for daily data by category
-        var dailyData: [String: [UsageCategory: TimeInterval]] = [:]
+        // Storage for daily data by actual date (not formatted string)
+        // This prevents duplicate weekday names from colliding
+        var dailyData: [Date: [UsageCategory: TimeInterval]] = [:]
 
         // Use raw SQL to filter non-null dates
         let sql = """
@@ -310,35 +311,38 @@ class DatabaseManager {
             // Get the actual event timestamp
             let eventDate = Date(timeInterval: eventStartTimestamp, since: referenceDate)
             let dayStart = calendar.startOfDay(for: eventDate)
-            let dayLabel = dateFormatter.string(from: dayStart)
 
             // Categorize the app
             let category = categorizeApp(bundleId: bundleId)
 
-            // Add to daily data
-            if dailyData[dayLabel] == nil {
-                dailyData[dayLabel] = [:]
+            // Add to daily data using actual Date as key
+            if dailyData[dayStart] == nil {
+                dailyData[dayStart] = [:]
             }
-            dailyData[dayLabel]![category, default: 0] += duration
+            dailyData[dayStart]![category, default: 0] += duration
 
             eventCount += 1
         }
 
         print("🔍 Processed \(eventCount) events for daily breakdown")
+        print("🔍 Found \(dailyData.keys.count) unique days")
 
         // Convert to result format, maintaining chronological order
         var result: [(day: String, category: UsageCategory, usage: TimeInterval)] = []
-        var currentDate = calendar.startOfDay(for: startDate)
 
-        while currentDate < endDate {
-            let dayLabel = dateFormatter.string(from: currentDate)
-            if let categoryData = dailyData[dayLabel] {
+        // Sort dates chronologically
+        let sortedDates = dailyData.keys.sorted()
+
+        for dayStart in sortedDates {
+            let dayLabel = dateFormatter.string(from: dayStart)
+
+            if let categoryData = dailyData[dayStart] {
+                print("🔍 Day: \(dayLabel) (\(dayStart)) - Categories: \(categoryData.keys.count)")
                 // Sort by category sortOrder for proper stacking (bottom to top)
                 for (category, usage) in categoryData.sorted(by: { $0.key.sortOrder < $1.key.sortOrder }) {
                     result.append((day: dayLabel, category: category, usage: usage))
                 }
             }
-            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
         }
 
         return result
