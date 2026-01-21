@@ -18,6 +18,10 @@ class DatabaseManager {
         return NSString(string: "~/Library/Application Support/com.apple.screentime/RMAdminStore-Local.sqlite").expandingTildeInPath
     }
 
+    private var screenTimeDirectory: String {
+        return NSString(string: "~/Library/Application Support/com.apple.screentime").expandingTildeInPath
+    }
+
     private init() {}
 
     // MARK: - Database Access Check
@@ -351,8 +355,12 @@ class DatabaseManager {
     // MARK: - Fetch Devices
 
     func fetchDevices() throws -> [DeviceInfo] {
-        guard fileManager.fileExists(atPath: screenTimeDBPath) else {
-            // Return current device only if Screen Time DB doesn't exist
+        var allDevices: [String: DeviceInfo] = [:] // Use dictionary to deduplicate by device ID
+
+        // Check if Screen Time directory exists
+        guard fileManager.fileExists(atPath: screenTimeDirectory) else {
+            print("⚠️ Screen Time directory not found: \(screenTimeDirectory)")
+            // Return current device only if Screen Time directory doesn't exist
             return [DeviceInfo(
                 id: getCurrentDeviceID(),
                 name: Host.current().localizedName ?? "This Mac",
@@ -360,38 +368,91 @@ class DatabaseManager {
             )]
         }
 
-        let db = try Connection(screenTimeDBPath, readonly: true)
+        print("🔍 Scanning Screen Time directory: \(screenTimeDirectory)")
 
-        // Try to fetch devices from the database
+        // Get all files in the Screen Time directory
+        do {
+            let contents = try fileManager.contentsOfDirectory(atPath: screenTimeDirectory)
+            let sqliteFiles = contents.filter { $0.hasSuffix(".sqlite") }
+
+            print("📁 Found \(sqliteFiles.count) database files:")
+            for file in sqliteFiles {
+                print("   - \(file)")
+            }
+
+            // Try to read devices from each database file
+            for filename in sqliteFiles {
+                let dbPath = (screenTimeDirectory as NSString).appendingPathComponent(filename)
+
+                do {
+                    let db = try Connection(dbPath, readonly: true)
+                    let devices = try fetchDevicesFromDatabase(db: db, source: filename)
+
+                    // Add devices to our collection (deduplicating by ID)
+                    for device in devices {
+                        allDevices[device.id] = device
+                    }
+
+                    print("✅ Successfully read \(devices.count) device(s) from \(filename)")
+                } catch {
+                    print("⚠️ Could not read devices from \(filename): \(error)")
+                    // Continue to next database file
+                    continue
+                }
+            }
+        } catch {
+            print("❌ Error reading Screen Time directory: \(error)")
+        }
+
+        // If we found devices, return them
+        if !allDevices.isEmpty {
+            print("📱 Total unique devices found: \(allDevices.count)")
+            return Array(allDevices.values).sorted { $0.name < $1.name }
+        }
+
+        // Fallback: return current device
+        print("⚠️ No devices found in databases, returning current device")
+        return [DeviceInfo(
+            id: getCurrentDeviceID(),
+            name: Host.current().localizedName ?? "This Mac",
+            model: "Mac"
+        )]
+    }
+
+    private func fetchDevicesFromDatabase(db: Connection, source: String) throws -> [DeviceInfo] {
+        var deviceList: [DeviceInfo] = []
+
+        // Try to fetch devices from ZDEVICE table
         do {
             let devices = Table("ZDEVICE")
             let zId = Expression<String>("ZIDENTIFIER")
             let zName = Expression<String?>("ZNAME")
             let zModel = Expression<String?>("ZMODEL")
-
-            var deviceList: [DeviceInfo] = []
+            let zLastSeen = Expression<Double?>("ZLASTSEENDATE")
 
             for row in try db.prepare(devices) {
+                // Convert Core Data timestamp to Date if available
+                var lastSeenDate = Date()
+                if let lastSeenTimestamp = row[zLastSeen] {
+                    let referenceDate = Date(timeIntervalSinceReferenceDate: 0)
+                    lastSeenDate = Date(timeInterval: lastSeenTimestamp, since: referenceDate)
+                }
+
                 deviceList.append(DeviceInfo(
                     id: row[zId],
                     name: row[zName] ?? "Unknown Device",
-                    model: row[zModel] ?? "Unknown"
+                    model: row[zModel] ?? "Unknown",
+                    lastSeen: lastSeenDate
                 ))
             }
 
-            return deviceList.isEmpty ? [DeviceInfo(
-                id: getCurrentDeviceID(),
-                name: Host.current().localizedName ?? "This Mac",
-                model: "Mac"
-            )] : deviceList
+            print("   ℹ️ Read \(deviceList.count) devices from ZDEVICE table in \(source)")
         } catch {
-            // If table doesn't exist, return current device
-            return [DeviceInfo(
-                id: getCurrentDeviceID(),
-                name: Host.current().localizedName ?? "This Mac",
-                model: "Mac"
-            )]
+            // Table might not exist in this database
+            print("   ℹ️ No ZDEVICE table in \(source): \(error)")
         }
+
+        return deviceList
     }
 
     // MARK: - Helper Methods
