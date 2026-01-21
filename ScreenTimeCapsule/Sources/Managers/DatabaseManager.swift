@@ -124,6 +124,7 @@ class DatabaseManager {
         // Add device filtering if deviceId is provided
         if let deviceId = deviceId {
             sql += """
+
                 LEFT JOIN ZSOURCE s ON o.ZSOURCE = s.Z_PK
                 WHERE (o.ZSTREAMNAME = '/app/usage' OR o.ZSTREAMNAME = '/app/inFocus')
                 AND o.ZSTARTDATE >= ?
@@ -132,6 +133,7 @@ class DatabaseManager {
                 """
         } else {
             sql += """
+
                 WHERE (o.ZSTREAMNAME = '/app/usage' OR o.ZSTREAMNAME = '/app/inFocus')
                 AND o.ZSTARTDATE >= ?
                 AND o.ZSTARTDATE <= ?
@@ -240,6 +242,7 @@ class DatabaseManager {
 
         if let deviceId = deviceId {
             sql += """
+
                 LEFT JOIN ZSOURCE s ON o.ZSOURCE = s.Z_PK
                 WHERE (o.ZSTREAMNAME = '/app/usage' OR o.ZSTREAMNAME = '/app/inFocus')
                 AND o.ZSTARTDATE IS NOT NULL
@@ -249,6 +252,7 @@ class DatabaseManager {
                 """
         } else {
             sql += """
+
                 WHERE (o.ZSTREAMNAME = '/app/usage' OR o.ZSTREAMNAME = '/app/inFocus')
                 AND o.ZSTARTDATE IS NOT NULL
                 AND o.ZSTARTDATE >= ?
@@ -351,6 +355,7 @@ class DatabaseManager {
 
         if let deviceId = deviceId {
             sql += """
+
                 LEFT JOIN ZSOURCE s ON o.ZSOURCE = s.Z_PK
                 WHERE (o.ZSTREAMNAME = '/app/usage' OR o.ZSTREAMNAME = '/app/inFocus')
                 AND o.ZSTARTDATE IS NOT NULL
@@ -360,6 +365,7 @@ class DatabaseManager {
                 """
         } else {
             sql += """
+
                 WHERE (o.ZSTREAMNAME = '/app/usage' OR o.ZSTREAMNAME = '/app/inFocus')
                 AND o.ZSTARTDATE IS NOT NULL
                 AND o.ZSTARTDATE >= ?
