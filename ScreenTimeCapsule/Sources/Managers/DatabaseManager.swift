@@ -178,10 +178,10 @@ class DatabaseManager {
 
         let db = try Connection(knowledgeDBPath, readonly: true)
 
-        // Define table and columns
+        // Define table and columns (make ZSTARTDATE optional to handle null values)
         let objects = Table("ZOBJECT")
         let zStreamName = Expression<String?>("ZSTREAMNAME")
-        let zStartDate = Expression<Double>("ZSTARTDATE")
+        let zStartDate = Expression<Double?>("ZSTARTDATE")
         let zEndDate = Expression<Double?>("ZENDDATE")
         let zValueString = Expression<String?>("ZVALUESTRING")
 
@@ -194,25 +194,35 @@ class DatabaseManager {
         let calendar = Calendar.current
 
         let query = objects
-            .filter(zStartDate >= startTimestamp && zStartDate <= endTimestamp)
             .filter(zStreamName == "/app/usage" || zStreamName == "/app/inFocus")
 
         var eventCount = 0
+        var skippedNullDates = 0
 
         for row in try db.prepare(query) {
-            guard let bundleId = row[zValueString] else { continue }
+            guard let bundleId = row[zValueString],
+                  let eventStartTimestamp = row[zStartDate] else {
+                if row[zStartDate] == nil {
+                    skippedNullDates += 1
+                }
+                continue
+            }
+
+            // Filter by date range
+            guard eventStartTimestamp >= startTimestamp && eventStartTimestamp <= endTimestamp else {
+                continue
+            }
 
             // Calculate duration
             let duration: Double
             if let end = row[zEndDate] {
-                duration = end - row[zStartDate]
+                duration = end - eventStartTimestamp
             } else {
                 duration = 60.0 // Default 1 minute for events without end date
             }
 
             // Get the actual event timestamp
-            let eventTimestamp = row[zStartDate]
-            let eventDate = Date(timeInterval: eventTimestamp, since: referenceDate)
+            let eventDate = Date(timeInterval: eventStartTimestamp, since: referenceDate)
             let hour = calendar.component(.hour, from: eventDate)
 
             // Categorize the app
@@ -227,6 +237,9 @@ class DatabaseManager {
             eventCount += 1
         }
 
+        if skippedNullDates > 0 {
+            print("⚠️ Skipped \(skippedNullDates) events with null ZSTARTDATE")
+        }
         print("🔍 Processed \(eventCount) events for hourly breakdown")
 
         // Convert to result format
@@ -249,10 +262,10 @@ class DatabaseManager {
 
         let db = try Connection(knowledgeDBPath, readonly: true)
 
-        // Define table and columns
+        // Define table and columns (make ZSTARTDATE optional to handle null values)
         let objects = Table("ZOBJECT")
         let zStreamName = Expression<String?>("ZSTREAMNAME")
-        let zStartDate = Expression<Double>("ZSTARTDATE")
+        let zStartDate = Expression<Double?>("ZSTARTDATE")
         let zEndDate = Expression<Double?>("ZENDDATE")
         let zValueString = Expression<String?>("ZVALUESTRING")
 
@@ -269,25 +282,35 @@ class DatabaseManager {
         var dailyData: [String: [UsageCategory: TimeInterval]] = [:]
 
         let query = objects
-            .filter(zStartDate >= startTimestamp && zStartDate <= endTimestamp)
             .filter(zStreamName == "/app/usage" || zStreamName == "/app/inFocus")
 
         var eventCount = 0
+        var skippedNullDates = 0
 
         for row in try db.prepare(query) {
-            guard let bundleId = row[zValueString] else { continue }
+            guard let bundleId = row[zValueString],
+                  let eventStartTimestamp = row[zStartDate] else {
+                if row[zStartDate] == nil {
+                    skippedNullDates += 1
+                }
+                continue
+            }
+
+            // Filter by date range
+            guard eventStartTimestamp >= startTimestamp && eventStartTimestamp <= endTimestamp else {
+                continue
+            }
 
             // Calculate duration
             let duration: Double
             if let end = row[zEndDate] {
-                duration = end - row[zStartDate]
+                duration = end - eventStartTimestamp
             } else {
                 duration = 60.0 // Default 1 minute for events without end date
             }
 
             // Get the actual event timestamp
-            let eventTimestamp = row[zStartDate]
-            let eventDate = Date(timeInterval: eventTimestamp, since: referenceDate)
+            let eventDate = Date(timeInterval: eventStartTimestamp, since: referenceDate)
             let dayStart = calendar.startOfDay(for: eventDate)
             let dayLabel = dateFormatter.string(from: dayStart)
 
@@ -303,6 +326,9 @@ class DatabaseManager {
             eventCount += 1
         }
 
+        if skippedNullDates > 0 {
+            print("⚠️ Skipped \(skippedNullDates) events with null ZSTARTDATE")
+        }
         print("🔍 Processed \(eventCount) events for daily breakdown")
 
         // Convert to result format, maintaining chronological order
