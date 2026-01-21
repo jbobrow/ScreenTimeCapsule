@@ -41,12 +41,12 @@ struct HourlyUsageChart: View {
                     }
                 }
                 .chartForegroundStyleScale(categoryColorScale())
-                .chartXScale(domain: 0...23)
+                .chartXScale(domain: 0...24)
                 .chartXAxis {
-                    AxisMarks(values: Array(0...23)) { value in
+                    AxisMarks(values: [0, 6, 12, 18, 24]) { value in
                         if let hour = value.as(Int.self) {
                             AxisValueLabel {
-                                Text(hourLabel(hour))
+                                Text(xAxisLabel(hour))
                                     .font(.caption2)
                             }
                         }
@@ -57,7 +57,7 @@ struct HourlyUsageChart: View {
                         AxisGridLine()
                         AxisValueLabel {
                             if let minutes = value.as(Double.self) {
-                                Text("\(Int(minutes))m")
+                                Text(yAxisLabel(minutes))
                             }
                         }
                     }
@@ -67,15 +67,23 @@ struct HourlyUsageChart: View {
         }
     }
 
-    private func hourLabel(_ hour: Int) -> String {
-        if hour == 0 {
-            return "12 AM"
-        } else if hour < 12 {
-            return "\(hour) AM"
-        } else if hour == 12 {
-            return "12 PM"
+    private func xAxisLabel(_ hour: Int) -> String {
+        switch hour {
+        case 0: return "12am"
+        case 6: return "6am"
+        case 12: return "12pm"
+        case 18: return "6pm"
+        case 24: return "12am"
+        default: return ""
+        }
+    }
+
+    private func yAxisLabel(_ minutes: Double) -> String {
+        if minutes > 90 {
+            let hours = minutes / 60
+            return String(format: "%.0fh", hours)
         } else {
-            return "\(hour - 12) PM"
+            return "\(Int(minutes))m"
         }
     }
 
@@ -83,12 +91,9 @@ struct HourlyUsageChart: View {
         return [
             UsageCategory.productivity.rawValue: categoryColor(.productivity),
             UsageCategory.creativity.rawValue: categoryColor(.creativity),
-            UsageCategory.entertainment.rawValue: categoryColor(.entertainment),
             UsageCategory.social.rawValue: categoryColor(.social),
-            UsageCategory.games.rawValue: categoryColor(.games),
-            UsageCategory.reading.rawValue: categoryColor(.reading),
-            UsageCategory.education.rawValue: categoryColor(.education),
-            UsageCategory.health.rawValue: categoryColor(.health),
+            UsageCategory.entertainment.rawValue: categoryColor(.entertainment),
+            UsageCategory.utilities.rawValue: categoryColor(.utilities),
             UsageCategory.other.rawValue: categoryColor(.other)
         ]
     }
@@ -97,12 +102,9 @@ struct HourlyUsageChart: View {
         switch category.color {
         case "blue": return .blue
         case "teal": return .teal
-        case "purple": return .purple
         case "pink": return .pink
+        case "purple": return .purple
         case "orange": return .orange
-        case "green": return .green
-        case "indigo": return .indigo
-        case "red": return .red
         default: return .gray
         }
     }
@@ -122,14 +124,16 @@ struct WeeklyUsageChart: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
                 Chart {
-                    ForEach(dataManager.getWeeklyUsageData(), id: \.day) { data in
+                    ForEach(Array(dataManager.getDailyUsageDataByCategory().enumerated()), id: \.offset) { index, data in
                         BarMark(
                             x: .value("Day", data.day),
-                            y: .value("Usage", data.usage / 3600) // Convert to hours
+                            y: .value("Usage", data.usage / 3600), // Convert to hours
+                            stacking: .standard
                         )
-                        .foregroundStyle(.blue.gradient)
+                        .foregroundStyle(by: .value("Category", data.category.rawValue))
                     }
                 }
+                .chartForegroundStyleScale(categoryColorScale())
                 .chartYAxis {
                     AxisMarks(position: .leading) { value in
                         AxisGridLine()
@@ -142,6 +146,28 @@ struct WeeklyUsageChart: View {
                 }
                 .frame(height: 120)
             }
+        }
+    }
+
+    private func categoryColorScale() -> KeyValuePairs<String, Color> {
+        return [
+            UsageCategory.productivity.rawValue: categoryColor(.productivity),
+            UsageCategory.creativity.rawValue: categoryColor(.creativity),
+            UsageCategory.social.rawValue: categoryColor(.social),
+            UsageCategory.entertainment.rawValue: categoryColor(.entertainment),
+            UsageCategory.utilities.rawValue: categoryColor(.utilities),
+            UsageCategory.other.rawValue: categoryColor(.other)
+        ]
+    }
+
+    private func categoryColor(_ category: UsageCategory) -> Color {
+        switch category.color {
+        case "blue": return .blue
+        case "teal": return .teal
+        case "pink": return .pink
+        case "purple": return .purple
+        case "orange": return .orange
+        default: return .gray
         }
     }
 }
@@ -185,12 +211,9 @@ struct CategoryBreakdownChart: View {
         switch category.color {
         case "blue": return .blue
         case "teal": return .teal
-        case "purple": return .purple
         case "pink": return .pink
+        case "purple": return .purple
         case "orange": return .orange
-        case "green": return .green
-        case "indigo": return .indigo
-        case "red": return .red
         default: return .gray
         }
     }

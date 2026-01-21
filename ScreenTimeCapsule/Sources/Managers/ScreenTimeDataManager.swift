@@ -198,29 +198,39 @@ class ScreenTimeDataManager: ObservableObject {
     }
 
     func getHourlyUsageDataByCategory() -> [(hour: Int, category: UsageCategory, usage: TimeInterval)] {
-        // Create a dictionary to store usage by hour and category
-        var hourlyData: [Int: [UsageCategory: TimeInterval]] = [:]
+        // Fetch hourly events directly from database with actual timestamps
+        let dateRange = getCurrentDateRange()
 
-        // Aggregate usage by hour and category
-        for app in currentUsage {
-            let hour = Calendar.current.component(.hour, from: app.startDate)
-            if hourlyData[hour] == nil {
-                hourlyData[hour] = [:]
-            }
-            hourlyData[hour]![app.category, default: 0] += app.totalTime
+        do {
+            let hourlyEvents = try DatabaseManager.shared.fetchHourlyAppUsageEvents(
+                from: dateRange.start,
+                to: dateRange.end
+            )
+            return hourlyEvents
+        } catch {
+            print("❌ Error fetching hourly usage data: \(error)")
+            return []
         }
+    }
 
-        // Flatten the data structure and sort
-        var result: [(hour: Int, category: UsageCategory, usage: TimeInterval)] = []
-        for hour in 0...23 {
-            if let categoryData = hourlyData[hour] {
-                for (category, usage) in categoryData {
-                    result.append((hour: hour, category: category, usage: usage))
-                }
-            }
+    func getDailyUsageDataByCategory() -> [(day: String, category: UsageCategory, usage: TimeInterval)] {
+        let dateRange = getCurrentDateRange()
+        let calendar = Calendar.current
+        let daysDiff = calendar.dateComponents([.day], from: dateRange.start, to: dateRange.end).day ?? 0
+
+        // If period is <= 1 day, return empty (use hourly instead)
+        guard daysDiff > 1 else { return [] }
+
+        do {
+            let dailyEvents = try DatabaseManager.shared.fetchDailyAppUsageEvents(
+                from: dateRange.start,
+                to: dateRange.end
+            )
+            return dailyEvents
+        } catch {
+            print("❌ Error fetching daily usage data: \(error)")
+            return []
         }
-
-        return result.sorted { $0.hour < $1.hour }
     }
 
     func getWeeklyUsageData() -> [(day: String, usage: TimeInterval)] {

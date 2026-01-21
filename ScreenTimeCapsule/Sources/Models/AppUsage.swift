@@ -47,26 +47,20 @@ struct AppUsage: Identifiable, Codable {
 // MARK: - Usage Category
 
 enum UsageCategory: String, Codable, CaseIterable {
-    case productivity = "Productivity & Finance"
+    case productivity = "Productivity"
     case creativity = "Creativity"
+    case social = "Social"
     case entertainment = "Entertainment"
-    case social = "Social Networking"
-    case games = "Games"
-    case reading = "Reading & Reference"
-    case education = "Education"
-    case health = "Health & Fitness"
+    case utilities = "Utilities"
     case other = "Other"
 
     var color: String {
         switch self {
         case .productivity: return "blue"
         case .creativity: return "teal"
-        case .entertainment: return "purple"
         case .social: return "pink"
-        case .games: return "orange"
-        case .reading: return "green"
-        case .education: return "indigo"
-        case .health: return "red"
+        case .entertainment: return "purple"
+        case .utilities: return "orange"
         case .other: return "gray"
         }
     }
