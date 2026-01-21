@@ -75,8 +75,15 @@ class ScreenTimeDataManager: ObservableObject {
                 let fetchedDevices = try databaseManager.fetchDevices()
                 await MainActor.run {
                     self.devices = fetchedDevices
-                    if selectedDevice == nil, let first = fetchedDevices.first {
-                        selectedDevice = first
+                    // If no devices available (Knowledge DB only), don't set selectedDevice
+                    // This will cause queries to run without device filtering
+                    if !fetchedDevices.isEmpty {
+                        if selectedDevice == nil, let first = fetchedDevices.first {
+                            selectedDevice = first
+                        }
+                    } else {
+                        selectedDevice = nil
+                        print("ℹ️ Device filtering unavailable - will show aggregated data from all devices")
                     }
                 }
             } catch {

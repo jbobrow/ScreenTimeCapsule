@@ -115,32 +115,6 @@ class DatabaseManager {
             }
         }
 
-        // Debug: Check if ZSOURCE column exists and what values it has
-        if deviceId != nil {
-            print("🔍 DEBUG: Checking ZOBJECT.ZSOURCE column...")
-            let sourceCheckQuery = try db.prepare("SELECT ZSOURCE FROM ZOBJECT WHERE ZSTREAMNAME = '/app/usage' LIMIT 5")
-            var sourceCount = 0
-            for row in sourceCheckQuery {
-                sourceCount += 1
-                print("   ZOBJECT.ZSOURCE value: \(row[0] ?? "NULL")")
-            }
-            if sourceCount == 0 {
-                print("   ⚠️ No ZOBJECT rows found")
-            }
-
-            // Check ZSOURCE table contents
-            print("🔍 DEBUG: Checking ZSOURCE table contents...")
-            let zsourceQuery = try db.prepare("SELECT Z_PK, ZDEVICEID, ZSOURCEID FROM ZSOURCE LIMIT 5")
-            var zsourceCount = 0
-            for row in zsourceQuery {
-                zsourceCount += 1
-                print("   ZSOURCE: Z_PK=\(row[0] ?? "NULL"), ZDEVICEID=\(row[1] ?? "NULL"), ZSOURCEID=\(row[2] ?? "NULL")")
-            }
-            if zsourceCount == 0 {
-                print("   ⚠️ No ZSOURCE rows found")
-            }
-        }
-
         // Use raw SQL for better control over joins and filtering
         var sql = """
             SELECT o.ZSTARTDATE, o.ZENDDATE, o.ZVALUESTRING
@@ -517,33 +491,17 @@ class DatabaseManager {
             print("⚠️ Screen Time directory not found: \(screenTimeDirectory)")
         }
 
-        // If no devices found from Screen Time, try Knowledge database
-        if allDevices.isEmpty {
-            print("🔍 Attempting to extract devices from Knowledge database")
-            do {
-                let knowledgeDevices = try fetchDevicesFromKnowledgeDB()
-                for device in knowledgeDevices {
-                    allDevices[device.id] = device
-                }
-                print("✅ Found \(knowledgeDevices.count) device(s) from Knowledge database")
-            } catch {
-                print("⚠️ Could not extract devices from Knowledge database: \(error)")
-            }
-        }
-
-        // If we found devices, return them
+        // If we found devices from Screen Time directory, return them
         if !allDevices.isEmpty {
             print("📱 Total unique devices found: \(allDevices.count)")
             return Array(allDevices.values).sorted { $0.name < $1.name }
         }
 
-        // Fallback: return current device
-        print("⚠️ No devices found in databases, returning current device")
-        return [DeviceInfo(
-            id: getCurrentDeviceID(),
-            name: Host.current().localizedName ?? "This Mac",
-            model: "Mac"
-        )]
+        // No Screen Time directory - Knowledge database doesn't support per-device filtering
+        // Return empty array to indicate device filtering is not available
+        print("⚠️ No Screen Time directory found - device filtering unavailable")
+        print("   Knowledge database aggregates data from all devices without device linkage")
+        return []
     }
 
     private func fetchDevicesFromScreenTimeDB(db: Connection, source: String) throws -> [DeviceInfo] {
@@ -582,95 +540,6 @@ class DatabaseManager {
         return deviceList
     }
 
-    private func fetchDevicesFromKnowledgeDB() throws -> [DeviceInfo] {
-        var deviceList: [DeviceInfo] = []
-        var deviceMap: [String: DeviceInfo] = [:]
-
-        guard fileManager.fileExists(atPath: knowledgeDBPath) else {
-            print("   ℹ️ Knowledge database not found")
-            return deviceList
-        }
-
-        let db = try Connection(knowledgeDBPath, readonly: true)
-
-        // Try to fetch from ZSOURCE table which contains device information
-        do {
-            let sources = Table("ZSOURCE")
-            let zDeviceId = Expression<String?>("ZDEVICEID")
-            let zSourceId = Expression<String?>("ZSOURCEID")
-            let zBundleId = Expression<String?>("ZBUNDLEID")
-
-            for row in try db.prepare(sources) {
-                // Try to get device ID from various fields
-                var deviceId: String? = row[zDeviceId] ?? row[zSourceId]
-
-                // Skip if no device ID found
-                guard let devId = deviceId, !devId.isEmpty else { continue }
-
-                // Only add if not already in our map
-                if deviceMap[devId] == nil {
-                    // Try to get a friendly name from the bundle ID or use device ID
-                    let name: String
-                    if let bundleId = row[zBundleId], !bundleId.isEmpty {
-                        // Extract app name from bundle ID as a hint for device type
-                        name = devId.prefix(8).uppercased() + " Device"
-                    } else {
-                        name = devId.prefix(8).uppercased() + " Device"
-                    }
-
-                    deviceMap[devId] = DeviceInfo(
-                        id: devId,
-                        name: name,
-                        model: "Unknown"
-                    )
-                }
-            }
-
-            print("   ℹ️ Read \(deviceMap.count) unique devices from ZSOURCE table")
-        } catch {
-            print("   ℹ️ Could not read ZSOURCE table: \(error)")
-        }
-
-        // If ZSOURCE didn't work, try extracting device IDs from sync stream names
-        if deviceMap.isEmpty {
-            do {
-                let sql = """
-                    SELECT DISTINCT ZSTREAMNAME
-                    FROM ZOBJECT
-                    WHERE ZSTREAMNAME LIKE '/knowledge-sync-%'
-                    LIMIT 100
-                """
-
-                var syncDeviceIds = Set<String>()
-                for row in try db.prepare(sql) {
-                    if let streamName = row[0] as? String {
-                        // Extract UUID from stream names like "/knowledge-sync-addition-window/UUID"
-                        let components = streamName.split(separator: "/")
-                        if components.count >= 3,
-                           let uuid = components.last,
-                           uuid.count == 36 { // UUID format check
-                            syncDeviceIds.insert(String(uuid))
-                        }
-                    }
-                }
-
-                for deviceId in syncDeviceIds {
-                    let shortId = deviceId.prefix(8).uppercased()
-                    deviceMap[deviceId] = DeviceInfo(
-                        id: deviceId,
-                        name: "\(shortId) Device",
-                        model: "Unknown"
-                    )
-                }
-
-                print("   ℹ️ Extracted \(deviceMap.count) device IDs from sync streams")
-            } catch {
-                print("   ℹ️ Could not extract device IDs from sync streams: \(error)")
-            }
-        }
-
-        return Array(deviceMap.values)
-    }
 
     // MARK: - Helper Methods
 
